@@ -13,8 +13,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from scripts.normalize_camps import (DERIVED, LLM_JSONL, build_system_prompt, load_camps, load_manual,  # noqa: E402
-                                     load_vocab, read_jsonl)
+from scripts.normalize_camps import (DERIVED, LLM_JSONL, load_camps, load_manual,  # noqa: E402
+                                     load_system_prompt, load_vocab, read_jsonl)
 from app.core.normalize_v2 import content_hash, merge, v1_item_to_v2, validate_item  # noqa: E402
 
 OUT = DERIVED / 'pilot_compare.csv'
@@ -37,7 +37,7 @@ def main() -> int:
     manual = load_manual()
     camps, _ = load_camps(manual)
     by_id = {c.id: c for c in camps}
-    system = build_system_prompt(vocab)
+    system = load_system_prompt(vocab)
     records = read_jsonl(LLM_JSONL)
     v1_latest, v2_latest = {}, {}
     for r in records:
