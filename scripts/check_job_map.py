@@ -58,7 +58,7 @@ def main() -> int:
 
     for r in read_csv(RELATIONS):
         errors += [f'관계 파일의 직무가 jobs.csv에 없음: {j}' for j in (r['job_a'], r['job_b']) if j not in vocab]
-        if r['relation'] not in ('SAME', 'CLOSE', 'FAMILY'):
+        if r['relation'] not in ('CLOSE', 'FAMILY', 'NONE'):
             errors.append(f'알 수 없는 관계: {r}')
 
     if errors:
