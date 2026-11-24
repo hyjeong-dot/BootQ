@@ -1,0 +1,8 @@
+CLAUDE.md
+data/raw/
+data/derived/
+.env
+docs/INTERN_REVIEW.md
+__pycache__/
+.venv/
+data/private/
