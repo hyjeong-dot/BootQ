@@ -117,7 +117,7 @@
 | T-012 | M3 | 평가 스크립트 (DB·LLM 없이 Hit@3 재계산) | 본인 | T-010, T-011 | ⬜ |
 | T-013 | M3 | 슬롯필링 프롬프트(`prompts/slot_filling.md`)·스키마 (vocab Enum 자동 생성) | 본인 | T-008, T-019 | ⬜ |
 | T-019 | M3 | 정규화 프롬프트 본문을 `prompts/normalize_v2.md`로 이전, sources/에 프롬프트 읽기 추가, 동일 출력 테스트 | 본인 | - | ⬜ |
-| T-020 | M3 | 개발 환경: uv 설치, `pyproject.toml`·`uv.lock`, GitHub Actions CI(pytest), dev·main 브랜치 보호(CI 필수) | 본인 | - | ⬜ |
+| T-020 | M3 | → [#3](https://github.com/hyjeong-dot/BootQ/issues/3) 개발 환경: uv, `pyproject.toml`·`uv.lock`, GitHub Actions CI(pytest), dev·main 브랜치 보호(CI 필수) | 본인 | - | 🔄 |
 | T-021 | M1 | `data/private/` 백업용 비공개 git 저장소 만들기 | 본인 | - | ⬜ |
 | T-014 | M4 | Docker Compose(Postgres 17 + API, 127.0.0.1 게시), DB 스키마·마이그레이션 SQL·적용 스크립트, 테스트 DB | 본인 | T-020 | ⬜ |
 | T-015 | M4 | repositories, services(recorder), routers(글 등록·SSE·피드백) | 본인 | T-011, T-014 | ⬜ |
