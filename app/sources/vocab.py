@@ -15,3 +15,14 @@ def load_industry_family_pairs(path: Path | None = None) -> list[tuple[str, str]
 def load_industries(path: Path | None = None) -> set[str]:
     with (path or VOCAB_DIR / 'industries.csv').open(encoding='utf-8', newline='') as f:
         return {r['industry'] for r in csv.DictReader(f)}
+
+
+def load_job_families(path: Path | None = None, include_temporary: bool = False) -> dict[str, str]:
+    """jobs.csv의 직무 -> 대분류. 상태가 '임시'인 직무(재분류 뒤 삭제 예정)는 기본적으로 뺀다."""
+    with (path or VOCAB_DIR / 'jobs.csv').open(encoding='utf-8', newline='') as f:
+        return {r['job']: r['family'] for r in csv.DictReader(f) if include_temporary or r['status'] != '임시'}
+
+
+def load_skills(path: Path | None = None) -> list[str]:
+    with (path or VOCAB_DIR / 'skills.csv').open(encoding='utf-8', newline='') as f:
+        return [r['skill'] for r in csv.DictReader(f)]
