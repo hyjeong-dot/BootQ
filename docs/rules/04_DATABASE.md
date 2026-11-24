@@ -133,16 +133,16 @@ erDiagram
 | vocab_job | 대표 직무 어휘 (같은 일을 하는 원래 직무는 합침). 현재 `data/vocab/jobs.csv` | 설계 |
 | vocab_industry | 대표 산업 어휘. 현재 `data/vocab/industries.csv` | 설계 |
 | industry_family | 산업 → 계열 **집합** (한 산업이 여러 계열에 속할 수 있음). 현재 `data/vocab/industry_family.csv` | 설계 |
-| job_relation | 직무 쌍 관계 SAME / CLOSE / FAMILY. CLOSE는 "사실상 같은 일"로 좁게 | 설계 |
-| job_alias | 유저 target_job 자유 표기 → 대표 직무 | 설계 |
-| company_industry | 유저 target_company → 산업 | 설계 |
+| job_relation | 직무 쌍 관계 CLOSE / FAMILY (자기 자신은 항상 SAME이라 저장하지 않음). CLOSE는 "사실상 같은 일"로 좁게. 생성 파일 `data/vocab/job_relation.csv` ← `jobs.csv` + `job_family_policy.csv`(대분류별 자동 FAMILY) + `job_relation_manual.csv`(수동, NONE은 삭제), 생성 `scripts/build_job_relation.py` | 설계 |
+| job_alias | 유저 target_job 자유 표기 → 대표 직무(+산업). 대표 직무와 같은 표기는 넣지 않음(바로 일치). 직무가 빈 행은 "본문으로 판단". 원본 `data/private/job_alias.csv`(git 제외) | 설계 |
+| company_industry | 유저 target_company → 산업(여러 개 가능). 미지정·회사 아님은 빈 값. 원본 `data/private/company_industry.csv`(git 제외) | 설계 |
 | camp_raw | 출처 원본 복제. 원본 행 전체를 JSONB `payload`로 (출처에 새 필드가 생겨도 스키마가 깨지지 않게), 내용 해시로 멱등 처리, `active` | 설계 |
 | camp_profile | 정규화 결과. `status`(auto_approved / pending_review / approved), `normalizer_version` | 설계 |
 | post | 유저 글 | 설계 |
 | recommendation | 추천 결과. 슬롯 JSON은 JSONB, 처리시간·토큰·오류코드 | 설계 |
 | feedback | 카드별 피드백: rec_id, camp_id, 순위, 👍/👎, 👎 사유 | 설계 |
 | vocab_skill | 스킬 어휘. 현재 `data/vocab/skills.csv` (2026-11-25 추가) | 설계 |
-| category_camp_type | question_category → camp_type 기본값 (desired_help가 UNKNOWN일 때만 사용) (2026-11-25 추가) | 설계 |
+| category_camp_type | question_category → camp_type 기본값 (desired_help가 UNKNOWN일 때만 사용, 빈 값 = 선호 없음). 원본 `data/vocab/category_camp_type.csv` (2026-11-25 추가) | 설계 |
 | schema_migration | 적용한 마이그레이션 파일 이력 | 설계 |
 
 > 어휘·관계 테이블(vocab_*, job_relation, industry_family, job_alias, company_industry, category_camp_type)은 서버 시작 시 메모리 로드, `/api/admin/vocab/reload`로 재로드.
