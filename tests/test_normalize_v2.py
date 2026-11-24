@@ -1,5 +1,6 @@
 from app.core.normalize_v2 import (ANY, CampInput, Manual, Vocab, build_schema, build_system_prompt, build_user_prompt,
                                    evidence_in_name, merge, v1_item_to_v2, validate_item)
+from app.sources.prompts import load_prompt
 
 VOCAB = Vocab(
     job_families={'SW개발': 'IT/SW', 'IT일반': 'IT/SW', 'IT인프라': 'IT/SW', '공간디자인': '디자인', 'UI/UX디자인': '디자인',
@@ -30,7 +31,7 @@ def test_schema_has_no_way_to_replace_baseline_values():
 def test_prompt_marks_placeholder_and_memo():
     line = build_user_prompt([CampInput('c', '이름', ('IT일반',), (), ('IT',), (), True, ('PM',), '메모')])
     assert line == '1. 이름 | 기준: 직무=IT일반; 하위직무=-; 산업=IT | 주직무교체가능 | 추가직무후보=PM | 메모=메모'
-    assert '멘토의 소속' in build_system_prompt(VOCAB)
+    assert '멘토의 소속' in build_system_prompt(VOCAB, load_prompt('normalize_v2'))
 
 
 def test_replacing_a_non_placeholder_main_job_is_dropped_and_logged():

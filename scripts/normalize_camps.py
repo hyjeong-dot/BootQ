@@ -35,6 +35,7 @@ from app.core.normalize_v2 import (NORMALIZER_VERSION, PLACEHOLDER_ORIGINS, Camp
                                    v1_item_to_v2, validate_item)
 from app.llm.groq import GroqClient  # noqa: E402
 from app.llm.openrouter import OpenRouterClient  # noqa: E402
+from app.sources.prompts import load_prompt  # noqa: E402
 from app.sources.vocab import load_industries, load_job_families, load_skills  # noqa: E402
 
 DERIVED = ROOT / 'data' / 'derived'
@@ -76,6 +77,11 @@ def append_jsonl(path, record):
 
 def split(value):
     return tuple(v for v in value.split(SEP) if v)
+
+
+def load_system_prompt(vocab: Vocab) -> str:
+    """prompts/normalize_v2.md 본문에 어휘를 끼워 넣은 시스템 프롬프트."""
+    return build_system_prompt(vocab, load_prompt('normalize_v2'))
 
 
 def load_vocab() -> Vocab:
@@ -299,7 +305,7 @@ def main() -> int:
     vocab = load_vocab()
     manual = load_manual()
     camps, families = load_camps(manual)
-    system = build_system_prompt(vocab)
+    system = load_system_prompt(vocab)
     schema = build_schema(vocab)
 
     if args.v1_retro:

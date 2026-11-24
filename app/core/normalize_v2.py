@@ -14,6 +14,7 @@ import hashlib
 import json
 import re
 from dataclasses import dataclass, field
+from string import Template
 
 NORMALIZER_VERSION = 'v2'
 ANY = 'ANY'
@@ -103,42 +104,17 @@ def build_schema(vocab: Vocab) -> dict:
     }
 
 
-def build_system_prompt(vocab: Vocab) -> str:
+def build_system_prompt(vocab: Vocab, template: str) -> str:
+    """프롬프트 본문(template, prompts/normalize_v2.md)에 어휘를 끼워 넣는다.
+    본문의 자리표시: ${jobs}(대분류별 직무 목록), ${industries}, ${sub_jobs}, ${skills}. 모르는 자리표시가 있으면 KeyError.
+    본문을 바꾸면 content_hash가 바뀌어 다음 실행에서 전체 재정규화 대상이 된다."""
     by_family: dict[str, list[str]] = {}
     for job, family in vocab.job_families.items():
         by_family.setdefault(family, []).append(job)
     jobs_text = '\n'.join(f'  - {family}: {", ".join(jobs)}' for family, jobs in by_family.items())
     industries = [i for i in vocab.industries if i != ANY]
-    return f"""직무 부트캠프(현직자와 직무를 체험하는 온라인 캠프) 카탈로그를 정규화합니다. 캠프마다 기존 코드를 규칙으로 옮긴 '기준'이 주어집니다.
-당신은 기준을 다시 쓰지 않습니다. 캠프명을 읽고 기준에 없는 것만 '추가'로 냅니다. 기준 값은 시스템이 그대로 유지합니다.
-
-## 산업 판단 원칙 (가장 중요)
-- 산업은 "그 캠프의 과제가 설정된 회사의 업종"입니다.
-- 추가하는 경우: 캠프 과제가 특정 업종 회사의 업무로 설정돼 있을 때. 예) "정유사 해외영업 직무에서 하는 일" → 에너지/화학, "금융 공기업 신용평가" → 금융, 공기업, "회계법인 직무 체험" → 회계/컨설팅, "빅4 컨설팅펌" → 회계/컨설팅
-- 추가하지 않는 경우:
-  · 멘토의 소속·경력 소개일 때. 예) "L전자·화장품 대기업 출신 멘토와 함께하는 IR 실무", "IT회사 회계 경력자의 회계 실무", "제조업과 IT를 모두 경험한 현직자" → 추가 없음
-  · 일의 내용일 때. 예) "광고 집행", "데이터 분석", "통신 프로토콜 연구개발"은 직무·하위직무이지 산업이 아닙니다
-  · 막연한 규모 표현일 때. 예) "대기업", "스타트업", "외국계"
-- 기준 산업이 캠프명과 무관해 보이면(예: 업종 언급이 없는 범용 직무 캠프인데 기준 산업이 특정 업종) remove_industry_suggested=true로 제안만 하세요. 기준이 이미 ANY면 false입니다.
-
-## 필드 (순서대로 채우세요)
-- n: 입력 줄의 번호를 그대로.
-- evidence: 먼저 캠프명에서 직무·세부직무·업종을 가리키는 짧은 구절을 '그대로 복사'해 넣으세요(바꿔 쓰지 말 것, 캠프명 전체를 통째로 넣지 말 것). 예) "AWS 백엔드개발", "정유사", "상품기획, 사업기획". 아래의 main_job, add_jobs, add_industries, sub_job은 evidence에 넣은 구절에 근거해서만 채웁니다. **evidence가 비어 있으면 시스템이 그 캠프의 추가분을 모두 버립니다.** 추가할 것이 없으면 빈 배열.
-- is_camp: 직무 캠프로 보기 어려우면 false (예: 사내 특강).
-- main_job: 입력에 '주직무교체가능'이 있는 캠프에서만, 캠프명이 기준과 다른 직무를 분명히 가리킬 때 그 직무. 기준 직무를 그대로 둘 때와 그 밖의 캠프는 빈 문자열(기준 직무를 다시 적지 마세요). 예) 기준 IT일반인데 "서버&프론트 개발 실무" → SW개발
-- add_jobs: 캠프 과제가 기준 직무 외에 다른 직무를 '함께' 분명히 다룰 때만 (최대 1개). 예) "B2B기술영업 & B2C영업관리" → 기준이 기술영업이면 영업관리.
-  기준 직무와 같은 일을 가리키는 다른 이름은 추가가 아닙니다. 예) "양산기술 & 공정기술"(공정기술), "생산관리/기술"(생산관리 캠프에서 기술은 추가 안 함)
-- 직무에도 멘토 규칙이 적용됩니다: "시스템개발, 아키텍트, 기획을 모두 경험한 현직자가 알려주는 IT 실무"처럼 멘토의 이력에 나온 직무는 캠프 과제가 아니므로 main_job·add_jobs의 근거가 아닙니다.
-- add_industries: 위 산업 원칙에 따라 기준에 없는 산업만. 선택지: {", ".join(industries)}
-- sub_job: 기준 하위직무가 없고 캠프명에 세부 직무가 드러날 때만 짧은 명사구 하나. 기존 목록에 있으면 그것을: {", ".join(vocab.sub_jobs)}
-- skills: 캠프명에 명시된 기술·도구만. 선택지: {", ".join(vocab.skills)}
-- camp_type: EXPLORE=직무 이해·탐색·적성 확인(이해하기, 알아보기, 기초, 적성, 하는 일), EXPERIENCE=과제·프로젝트·포트폴리오로 실무 경험, APPLICATION=자소서·면접·지원 전략 준비.
-- 기존 상세분류에서 나온 '추가직무후보'와 사람의 '메모'가 있으면 참고하세요.
-
-## 직무 선택지
-{jobs_text}
-
-응답은 입력의 n을 그대로 쓴 camps 배열입니다."""
+    return Template(template).substitute(jobs=jobs_text, industries=', '.join(industries),
+                                         sub_jobs=', '.join(vocab.sub_jobs), skills=', '.join(vocab.skills))
 
 
 def build_user_prompt(camps: list[CampInput]) -> str:
