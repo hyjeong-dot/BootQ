@@ -6,6 +6,7 @@ D단계(LLM) 결과와 비교할 기준선이다. 기준선과 LLM 결과가 다
 - job_ids       : 원래 (대분류, 중분류) → 대표 직무 (data/private/job_map.csv)
 - industry_ids  : 원래 산업 → 대표 산업 (data/private/industry_map.csv).
                   상세분류가 산업 성격(예: 2차전지, 회계법인)이면 산업에 더한다. 산업이 ANY였다면 그 값으로 바꾼다
+- 캠프명에 2차전지·이차전지·배터리가 있으면 산업에 2차전지를 더한다 (키워드로 결정할 수 있는 판단은 LLM이 아니라 룰로)
 - sub_jobs, skills : 상세분류 → 분류표(data/private/detail_map.csv)의 sub_job, skill
 - job 성격의 상세분류(예: PM)와 버린 상세분류는 매칭에 쓰지 않고 job_hint, detail_dropped 칸에 남긴다 (D단계 참고용)
 - 캠프 하나가 여러 행이면(코드만 다른 같은 캠프) 값을 합친다
@@ -16,6 +17,7 @@ D단계(LLM) 결과와 비교할 기준선이다. 기준선과 LLM 결과가 다
 출력: data/derived/camp_baseline.csv (git 제외)
 """
 import csv
+import re
 import sys
 from collections import Counter, OrderedDict
 from pathlib import Path
@@ -32,6 +34,8 @@ SKILLS = ROOT / 'data' / 'vocab' / 'skills.csv'
 OUT = ROOT / 'data' / 'derived' / 'camp_baseline.csv'
 
 ANY = 'ANY'
+BATTERY_NAME = re.compile(r'2차\s*전지|이차\s*전지|배터리')
+BATTERY_INDUSTRY = '2차전지'
 NO_DETAIL = ('', 'N/A')
 SEP = '|'
 COLUMNS = ['source_camp_id', '캠프명', 'job_ids', 'job_families', 'sub_jobs', 'skills', 'industry_ids',
@@ -87,7 +91,8 @@ def main() -> int:
     out_rows = []
     for camp_id, c in camps.items():
         industries = c['industries']
-        for value in c['detail_industries']:
+        detail_industries = c['detail_industries'] + ([BATTERY_INDUSTRY] if BATTERY_NAME.search(c['캠프명']) else [])
+        for value in detail_industries:
             if industries == [ANY]:
                 industries = []
             add(industries, value)
