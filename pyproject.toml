@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "자연어 질의 의도 분석 기반 맞춤형 부트캠프 매칭 에이전트"
 readme = "README.md"
 requires-python = ">=3.13,<3.14"
-# 런타임 의존성은 실제로 쓰는 작업에서 추가한다 (FastAPI·psycopg 등은 T-014/T-015).
+# 런타임 의존성은 실제로 쓰는 작업에서 추가한다 (FastAPI·psycopg 등은 #13·#14).
 # 현재 코드는 표준 라이브러리만 사용한다.
 dependencies = []
 

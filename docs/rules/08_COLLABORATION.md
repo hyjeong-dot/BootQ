@@ -84,46 +84,35 @@
 
 ## 4. WBS (작업 분해 구조 — 산출물, 개발하며 갱신)
 
-> 작업 상태: ⬜ 대기 / 🔄 진행중 / ✅ 완료
-> **원본은 GitHub Issues** (2장 결정). 이 장에는 마일스톤 요약과 이슈 링크만 유지한다.
-> 아래 "작업 목록"은 **이슈로 옮기기 전 임시 목록**이다. 이슈를 만든 뒤 각 행을 이슈 링크로 바꾸고, 다 옮기면 표를 지운다.
+> **원본은 GitHub Issues·Milestones** (2장 결정, 2026-11-25 이전). 이 장에는 마일스톤 요약과 이슈 링크, 이슈에 담기 어려운 선행 관계만 둔다.
+> 작업 상태: ⬜ 대기 / 🔄 진행중 / ✅ 완료 (마일스톤 상태만 여기서 관리)
 
 ### 마일스톤
 
-| 마일스톤 | 목표 | 기한 | 상태 |
-|---|---|---|---|
-| M1 | 오프라인 정규화: 어휘·매핑·기준선·LLM 정규화 v2 | 2026-11-24 | 🔄 |
-| M2 | 평가 준비: 정답 셋 판정·고정 | 2026-11-25 | 🔄 |
-| M3 | 요청 파이프라인 core (gate, merge, matching, reason) + 평가 스크립트 | 2026-11-25 | ⬜ |
-| M4 | DB·API·SSE (Docker Compose, repositories, services, routers) | 2026-11-26 | ⬜ |
-| M5 | 데모 페이지 (토스트 + 피드백) | 2026-11-26 | ⬜ |
-| M6 | 평가 실행(3갈래, 계열 비교)과 결과·결정 문서 정리, README | 2026-11-27 | ⬜ |
+| 마일스톤 | 목표 | 기한 | 상태 | 이슈 (진행 기록) |
+|---|---|---|---|---|
+| [M1](https://github.com/hyjeong-dot/BootQ/milestone/1) | 오프라인 정규화: 어휘·매핑·기준선·LLM 정규화 v2 | 2026-11-24 | 🔄 | [#7](https://github.com/hyjeong-dot/BootQ/issues/7) [#8](https://github.com/hyjeong-dot/BootQ/issues/8) [#18](https://github.com/hyjeong-dot/BootQ/issues/18) ([#19](https://github.com/hyjeong-dot/BootQ/issues/19)) |
+| [M2](https://github.com/hyjeong-dot/BootQ/milestone/2) | 평가 준비: 정답 셋 판정·고정 | 2026-11-25 | 🔄 | [#9](https://github.com/hyjeong-dot/BootQ/issues/9) ([#20](https://github.com/hyjeong-dot/BootQ/issues/20)) |
+| [M3](https://github.com/hyjeong-dot/BootQ/milestone/3) | 요청 파이프라인 core + 평가 스크립트 | 2026-11-25 | 🔄 | [#1](https://github.com/hyjeong-dot/BootQ/issues/1)✅ [#3](https://github.com/hyjeong-dot/BootQ/issues/3)✅ [#5](https://github.com/hyjeong-dot/BootQ/issues/5)✅ [#22](https://github.com/hyjeong-dot/BootQ/issues/22) [#10](https://github.com/hyjeong-dot/BootQ/issues/10) [#11](https://github.com/hyjeong-dot/BootQ/issues/11) [#12](https://github.com/hyjeong-dot/BootQ/issues/12) ([#21](https://github.com/hyjeong-dot/BootQ/issues/21)) |
+| [M4](https://github.com/hyjeong-dot/BootQ/milestone/4) | DB·API·SSE | 2026-11-26 | ⬜ | [#13](https://github.com/hyjeong-dot/BootQ/issues/13) [#14](https://github.com/hyjeong-dot/BootQ/issues/14) |
+| [M5](https://github.com/hyjeong-dot/BootQ/milestone/5) | 데모 페이지 | 2026-11-26 | ⬜ | [#15](https://github.com/hyjeong-dot/BootQ/issues/15) |
+| [M6](https://github.com/hyjeong-dot/BootQ/milestone/6) | 평가 실행과 결과·문서 정리, README | 2026-11-27 | ⬜ | [#16](https://github.com/hyjeong-dot/BootQ/issues/16) [#17](https://github.com/hyjeong-dot/BootQ/issues/17) |
 
-### 작업 목록
+### 선행 관계
 
-| ID | 마일스톤 | 작업 | 담당 | 선행 작업 | 상태 |
-|---|---|---|---|---|---|
-| T-001 | M1 | 캠프 원본 정리 스크립트, 대표 직무 어휘 초안 | 본인 | - | ✅ |
-| T-002 | M1 | 대표 산업 어휘·계열, 산업 등급 판정 | 본인 | T-001 | ✅ |
-| T-003 | M1 | 상세분류 검사, 스킬 어휘, 2차전지 산업 신설 | 본인 | T-001 | ✅ |
-| T-004 | M1 | 캠프 ID(캠프명 해시), 기준 프로파일 스크립트 | 본인 | T-002 | ✅ |
-| T-005 | M1 | LLM 경계(Groq, OpenRouter), .env 모델 선택 | 본인 | - | ✅ |
-| T-006 | M1 | 캠프 LLM 정규화 v1 → v2(추가분만) | 본인 | T-004, T-005 | ✅ |
-| T-007 | M1 | 정규화 전체 실행 + diff 검수 완료, camp_type 분포 확인 (현재 시험 실행·검수 파일까지 진행) | 본인 | T-006 | 🔄 |
-| T-008 | M1 | job_relation 초안, job_alias, company_industry, category_camp_type (대분류 간 수동 관계·별칭 시드까지 진행) | 본인 | T-001 | 🔄 |
-| T-009 | M2 | 평가 설계 문서, 정답 셋 템플릿 | 본인 | - | ✅ |
-| T-010 | M2 | 정답 셋 판정 후 `eval/answer_set.csv` 커밋으로 고정 (현재 미커밋) | 본인 | T-009 | 🔄 |
-| T-011 | M3 | core: models, gate, merge, matching, reason + import 경계 테스트 | 본인 | T-007, T-008 | ⬜ |
-| T-012 | M3 | 평가 스크립트 (DB·LLM 없이 Hit@3 재계산) | 본인 | T-010, T-011 | ⬜ |
-| T-013 | M3 | 슬롯필링 프롬프트(`prompts/slot_filling.md`)·스키마 (vocab Enum 자동 생성) | 본인 | T-008, T-019 | ⬜ |
-| T-019 | M3 | → [#5](https://github.com/hyjeong-dot/BootQ/issues/5) 정규화 프롬프트 본문을 `prompts/normalize_v2.md`로 이전, sources/에 프롬프트 읽기 추가, 동일 출력 테스트 | 본인 | - | ✅ |
-| T-020 | M3 | → [#3](https://github.com/hyjeong-dot/BootQ/issues/3) 개발 환경: uv, `pyproject.toml`·`uv.lock`, GitHub Actions CI(pytest), dev·main 브랜치 보호(CI 필수) | 본인 | - | ✅ |
-| T-021 | M1 | `data/private/` 백업용 비공개 git 저장소 만들기 | 본인 | - | ⬜ |
-| T-014 | M4 | Docker Compose(Postgres 17 + API, 127.0.0.1 게시), DB 스키마·마이그레이션 SQL·적용 스크립트, 테스트 DB | 본인 | T-020 | ⬜ |
-| T-015 | M4 | repositories, services(recorder), routers(글 등록·SSE·피드백) | 본인 | T-011, T-014 | ⬜ |
-| T-016 | M5 | 데모 페이지 (Node 24 설치, TS + tsc, 반응형, CI에 `tsc --noEmit` 추가) | 본인 | T-015 | ⬜ |
-| T-017 | M6 | 3갈래 평가 실행, 계열(E12·E13) 비교, 결과 기록 | 본인 | T-012, T-013 | ⬜ |
-| T-018 | M6 | README(인턴십 재설계 맥락 한 줄 포함), 설계 결정 문서 정리 | 본인 | T-017 | ⬜ |
+| 이슈 | 먼저 끝나야 하는 이슈 |
+|---|---|
+| [#10](https://github.com/hyjeong-dot/BootQ/issues/10) 매칭 core | [#7](https://github.com/hyjeong-dot/BootQ/issues/7) 정규화 검수, [#8](https://github.com/hyjeong-dot/BootQ/issues/8) 매칭용 어휘 |
+| [#11](https://github.com/hyjeong-dot/BootQ/issues/11) 평가 스크립트 | [#9](https://github.com/hyjeong-dot/BootQ/issues/9) 정답 셋, [#10](https://github.com/hyjeong-dot/BootQ/issues/10) 매칭 core |
+| [#12](https://github.com/hyjeong-dot/BootQ/issues/12) 슬롯필링 | [#8](https://github.com/hyjeong-dot/BootQ/issues/8) 매칭용 어휘 |
+| [#14](https://github.com/hyjeong-dot/BootQ/issues/14) API | [#10](https://github.com/hyjeong-dot/BootQ/issues/10) 매칭 core, [#13](https://github.com/hyjeong-dot/BootQ/issues/13) DB |
+| [#15](https://github.com/hyjeong-dot/BootQ/issues/15) 데모 페이지 | [#14](https://github.com/hyjeong-dot/BootQ/issues/14) API |
+| [#16](https://github.com/hyjeong-dot/BootQ/issues/16) 3갈래 평가 | [#11](https://github.com/hyjeong-dot/BootQ/issues/11) 평가 스크립트, [#12](https://github.com/hyjeong-dot/BootQ/issues/12) 슬롯필링 |
+| [#17](https://github.com/hyjeong-dot/BootQ/issues/17) README | [#16](https://github.com/hyjeong-dot/BootQ/issues/16) 3갈래 평가 |
+
+### 이슈 도입 전 완료한 작업 (git 이력)
+- M1: 캠프 원본 정리·대표 직무 어휘, 대표 산업 어휘·계열·산업 등급 판정, 상세분류 검사·스킬 어휘·2차전지 산업, 캠프 ID(캠프명 해시)·기준 프로파일, LLM 경계(Groq·OpenRouter), LLM 정규화 v1 → v2
+- M2: 평가 설계 문서(`docs/EVAL.md`)·정답 셋 템플릿
 
 ### WBS 운영 규칙
 - 작업 상태는 GitHub Issues(열림/닫힘)와 Milestones 진행률이 원본이다. 이 문서의 마일스톤 상태는 마일스톤을 닫을 때 갱신한다.
