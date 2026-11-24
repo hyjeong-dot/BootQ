@@ -38,6 +38,15 @@ def main() -> int:
     if rebuilt != load_job_relations():
         errors.append('job_relation.csv가 입력 파일과 다름: scripts/build_job_relation.py를 다시 실행')
 
+    files = [VOCAB_DIR / n for n in ('job_relation_manual.csv', 'job_family_policy.csv', 'category_camp_type.csv')]
+    files += [p for p in (PRIVATE_DIR / 'job_alias.csv', PRIVATE_DIR / 'company_industry.csv') if p.exists()]
+    for path in files:
+        for r in _read(path):
+            if None in r:   # 따옴표 없는 쉼표로 칸이 밀린 행
+                errors.append(f'{path.name} 칸 수 오류 (따옴표 없는 쉼표?): {list(r.values())[0]}')
+            if r.get('status') not in STATUSES:
+                errors.append(f'{path.name} 상태 값 오류: {list(r.values())[0]} {r.get("status")!r}')
+
     categories = load_category_camp_type()
     errors += [f'category_camp_type 값 오류: {c}={t}' for c, t in categories.items() if t and t not in CAMP_TYPES]
 
@@ -53,8 +62,6 @@ def main() -> int:
         for company, company_industries in companies.items():
             errors += [f'company_industry 산업이 어휘에 없음: {company} → {i}' for i in company_industries
                        if i not in industries]
-        for name, path in private.items():
-            errors += [f'{name} 상태 값 오류: {r}' for r in _read(path) if r['status'] not in STATUSES]
     else:
         print('git 제외 파일이 없어 job_alias·company_industry 검사를 건너뜀')
 
