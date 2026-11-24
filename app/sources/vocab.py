@@ -72,3 +72,11 @@ def load_job_alias(path: Path | None = None) -> dict[str, tuple[tuple[str, ...],
 def load_company_industry(path: Path | None = None) -> dict[str, tuple[str, ...]]:
     """(git 제외) 유저 target_company 표기 -> 산업들. 제외 행(미지정·회사 아님)은 빈 튜플."""
     return {r['company']: _split(r['industries']) for r in _read(path or PRIVATE_DIR / 'company_industry.csv')}
+
+
+# ---------- 슬롯필링 (#12) ----------
+def load_slot_vocab(jobs_path: Path | None = None, industries_path: Path | None = None):
+    """슬롯필링 스키마·프롬프트용 어휘. 파일 순서를 유지한다 (프롬프트가 실행마다 같아야 해서 set을 쓰지 않는다)."""
+    from app.core.slot_filling import SlotVocab
+    industries = tuple(r['industry'] for r in _read(industries_path or VOCAB_DIR / 'industries.csv'))
+    return SlotVocab(load_job_families(jobs_path), industries)
