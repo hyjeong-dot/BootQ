@@ -42,6 +42,12 @@ def test_family_pairs_use_known_industries():
     assert {i for _, i in load_industry_family_pairs()} <= known
 
 
+def test_battery_and_energy_chemical_share_family(families):
+    assert shares_family('2차전지', '에너지/화학', families)
+    assert not shares_family('2차전지', '자동차', families)
+    assert not shares_family('2차전지', '전자/기계', families)
+
+
 # 등급 판정
 def test_grade_order_is_match_family_any_mismatch():
     assert IndustryGrade.MATCH < IndustryGrade.FAMILY < IndustryGrade.ANY < IndustryGrade.MISMATCH
@@ -80,3 +86,11 @@ def test_family_index_is_a_parameter_so_evaluation_can_toggle_a_family():
     with_semi = build_family_index(base + [('전자·반도체', '반도체'), ('전자·반도체', '전자/기계')])
     assert industry_grade(['전자/기계'], ['반도체'], without) == IndustryGrade.MISMATCH
     assert industry_grade(['전자/기계'], ['반도체'], with_semi) == IndustryGrade.FAMILY
+
+
+def test_battery_user_sees_battery_camp_as_match_and_refinery_camp_as_family(families):
+    # 인턴십에서 2차전지 지망자에게 2차전지 캠프가 밀리던 유형
+    assert industry_grade(['2차전지'], ['2차전지'], families) == IndustryGrade.MATCH
+    assert industry_grade(['2차전지'], ['에너지/화학'], families) == IndustryGrade.FAMILY
+    assert industry_grade(['에너지/화학'], ['2차전지'], families) == IndustryGrade.FAMILY
+    assert industry_grade(['2차전지'], ['자동차'], families) == IndustryGrade.MISMATCH

@@ -2,7 +2,7 @@
 산업 매핑표(data/private/industry_map.csv, git 제외) 검사와 요약.
 
 - 캠프 원본의 산업 값이 매핑표에 빠짐없이 있는지, 매핑표에 원본에 없는 값이 있는지
-- 대표 산업이 industries.csv에 있는지, 계열 파일(industry_family.csv)의 산업이 목록에 있는지
+- 대표 산업이 industries.csv에 있는지(원래 값에서 오지 않는 '신설' 산업은 매핑표에서 안 써도 됨), 계열 파일(industry_family.csv)의 산업이 목록에 있는지
 - 계열 파일에 같은 (계열, 산업) 행이 중복되지 않는지 (한 산업이 여러 계열에 속하는 것은 허용)
 - 매핑 후 대표 산업별 캠프 행 수
 
@@ -39,9 +39,11 @@ def main() -> int:
     errors += [f'매핑표에 없음: {k}' for k in counts if k not in mapping]
     errors += [f'원본에 없는 값: {k}' for k in mapping if k not in counts]
 
-    vocab = {r['industry'] for r in read_csv(INDUSTRIES)}
+    vocab_rows = read_csv(INDUSTRIES)
+    vocab = {r['industry'] for r in vocab_rows}
+    new_industries = {r['industry'] for r in vocab_rows if r['note'].startswith('신설')}
     errors += [f'industries.csv에 없는 대표 산업: {v}' for v in set(mapping.values()) if v not in vocab]
-    errors += [f'매핑표에서 안 쓰는 산업: {v}' for v in vocab if v not in set(mapping.values())]
+    errors += [f'매핑표에서 안 쓰는 산업: {v}' for v in vocab if v not in set(mapping.values()) and v not in new_industries]
 
     seen = set()
     for r in read_csv(FAMILIES):
