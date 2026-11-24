@@ -3,7 +3,9 @@
 
 - 모든 칸의 앞뒤 공백 제거 (예: 상세분류 'GMP '와 'GMP'가 다른 값으로 잡히는 문제)
 - 캠프명에 '삭제'가 들어간 더미 행 제외
-- source_camp_id 부여: CSV에는 캠프 ID가 없으므로 직무코드+캠프명 해시로 안정적인 임시 ID를 만든다
+- source_camp_id 부여: CSV에는 캠프 ID가 없으므로 캠프명 해시로 임시 ID를 만든다.
+  같은 캠프가 직무코드만 다른 여러 행으로 들어 있어도(예: 상세분류 N/A 행과 photo공정 행) 같은 캠프로 묶이게
+  직무코드는 ID에 넣지 않는다. 캠프명이 바뀌면 새 캠프가 되는 것이 이 임시 ID의 한계다
 
 실행:
     python scripts/prepare_camps.py
@@ -25,8 +27,8 @@ DUMMY_MARKER = '삭제'
 COLUMNS = ['직무코드', '직무대분류', '직무중분류', '직무소분류', '상세분류', '산업', '캠프명']
 
 
-def make_source_camp_id(job_code: str, camp_name: str) -> str:
-    return hashlib.sha1(f'{job_code}|{camp_name}'.encode('utf-8')).hexdigest()[:12]
+def make_source_camp_id(camp_name: str) -> str:
+    return hashlib.sha1(camp_name.encode('utf-8')).hexdigest()[:12]
 
 
 def main() -> int:
@@ -37,16 +39,16 @@ def main() -> int:
     for row in rows:
         (dropped if DUMMY_MARKER in row['캠프명'] else kept).append(row)
 
-    ids = Counter()
+    pairs = Counter()
     out_rows = []
     for row in kept:
-        camp_id = make_source_camp_id(row['직무코드'], row['캠프명'])
-        ids[camp_id] += 1
+        camp_id = make_source_camp_id(row['캠프명'])
+        pairs[(camp_id, row['직무코드'])] += 1
         out_rows.append({'source': SOURCE, 'source_camp_id': camp_id, **{c: row[c] for c in COLUMNS}})
 
-    duplicated = [i for i, n in ids.items() if n > 1]
+    duplicated = [k for k, n in pairs.items() if n > 1]
     if duplicated:
-        print(f'source_camp_id 중복 {len(duplicated)}개: 같은 직무코드+캠프명 행이 있다', file=sys.stderr)
+        print(f'같은 캠프명+직무코드 행이 중복 {len(duplicated)}개', file=sys.stderr)
         return 1
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
@@ -56,7 +58,7 @@ def main() -> int:
         writer.writerows(out_rows)
 
     print(f'원본 {len(rows)}행 → 더미 제외 {len(dropped)}행 → {len(out_rows)}행 저장')
-    print(f'고유 캠프명 {len({r["캠프명"] for r in out_rows})}개, 상세분류 고유값 {len({r["상세분류"] for r in out_rows if r["상세분류"]})}개')
+    print(f'캠프(ID) {len({r["source_camp_id"] for r in out_rows})}개, 고유 캠프명 {len({r["캠프명"] for r in out_rows})}개, 상세분류 고유값 {len({r["상세분류"] for r in out_rows if r["상세분류"]})}개')
     print(f'출력: {OUT.relative_to(ROOT)}')
     return 0
 
