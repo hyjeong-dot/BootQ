@@ -156,8 +156,17 @@ def validate_item(item: object, camp: CampInput, vocab: Vocab) -> tuple[Profile 
 
     if errors:
         return None, errors
+    # 프롬프트로 "지우지 말라"고 해도 모델이 기준의 하위직무·스킬을 비우는 경우가 있어(시험에서 5건 모두 틀림) 코드에서 막는다
+    sub_job = sub_job.strip()
+    if camp.sub_jobs and not sub_job:
+        sub_job = camp.sub_jobs[0]
+        warnings.append('기준 하위직무 유지')
+    kept_skills = [s for s in camp.skills if s not in skills]
+    if kept_skills:
+        skills = [*skills, *kept_skills]
+        warnings.append('기준 스킬 유지')
     note = ' '.join(filter(None, [note.strip(), *[f'[{w}]' for w in warnings]]))
-    return Profile(is_camp, tuple(jobs), sub_job.strip(), tuple(industries), tuple(dict.fromkeys(skills)), camp_type, note), []
+    return Profile(is_camp, tuple(jobs), sub_job, tuple(industries), tuple(dict.fromkeys(skills)), camp_type, note), []
 
 
 def _str_list(value: object) -> list[str] | None:
@@ -168,7 +177,8 @@ def _str_list(value: object) -> list[str] | None:
 
 # ---------- 기준선과의 비교 ----------
 def changed_fields(camp: CampInput, profile: Profile) -> list[str]:
-    """기준선과 달라진 필드. 비어 있던 sub_job·skills에 값이 채워지는 것은 달라진 것으로 세지 않는다 (추가일 뿐 충돌이 아님)."""
+    """기준선과 달라진 필드. 비어 있던 sub_job·skills에 값이 채워지는 것은 달라진 것으로 세지 않는다 (추가일 뿐 충돌이 아님).
+    기준의 하위직무·스킬을 비우는 응답은 validate_item이 되살리므로 여기서는 다른 값으로 바꾼 경우만 잡힌다."""
     changed = []
     if set(profile.job_ids) != set(camp.jobs):
         changed.append('job_ids')

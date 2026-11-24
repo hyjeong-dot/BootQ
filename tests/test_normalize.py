@@ -63,14 +63,24 @@ def test_review_status_follows_the_baseline_diff():
     assert review_status(CAMP, None) == 'pending_review'
 
 
-def test_replacing_an_existing_sub_job_or_dropping_a_baseline_skill_needs_review():
+def test_replacing_an_existing_sub_job_or_marking_a_non_camp_needs_review():
     camp = CampInput('c2', 'x', ('SW개발',), ('백엔드',), ('IT',), ('SQL',))
     p1, _ = validate_item(item(job_ids=['SW개발'], sub_job='프론트엔드', skills=['SQL']), camp, VOCAB)
     assert changed_fields(camp, p1) == ['sub_job']
-    p2, _ = validate_item(item(job_ids=['SW개발'], sub_job='백엔드', skills=[]), camp, VOCAB)
-    assert changed_fields(camp, p2) == ['skills']
     not_a_camp, _ = validate_item(item(job_ids=['SW개발'], sub_job='백엔드', skills=['SQL'], is_camp=False), camp, VOCAB)
     assert changed_fields(camp, not_a_camp) == ['is_camp']
+
+
+def test_blanking_the_baseline_sub_job_or_skills_is_undone_in_code():
+    camp = CampInput('c2', 'x', ('SW개발',), ('백엔드',), ('IT',), ('SQL',))
+    profile, _ = validate_item(item(job_ids=['SW개발'], sub_job='', skills=[]), camp, VOCAB)
+    assert profile.sub_job == '백엔드' and profile.skills == ('SQL',)
+    assert '기준 하위직무 유지' in profile.change_note and '기준 스킬 유지' in profile.change_note
+    assert changed_fields(camp, profile) == [] and review_status(camp, profile) == 'auto_approved'
+    # 비어 있던 기준에는 아무 영향이 없다
+    empty = CampInput('c3', 'x', ('SW개발',), (), ('IT',), ())
+    profile, _ = validate_item(item(job_ids=['SW개발'], sub_job='', skills=[]), empty, VOCAB)
+    assert profile.sub_job == '' and profile.skills == () and profile.change_note == ''
 
 
 def test_content_hash_changes_with_prompt_or_camp():

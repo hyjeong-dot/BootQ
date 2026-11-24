@@ -16,7 +16,7 @@ def make_client(responses, **kwargs):
         calls.append((url, json.loads(body)))
         return responses[min(len(calls) - 1, len(responses) - 1)]
 
-    return OpenRouterClient('key', transport=transport, sleep=lambda s: None, **kwargs), calls
+    return OpenRouterClient('key', model='test/model:free', transport=transport, sleep=lambda s: None, **kwargs), calls
 
 
 def test_request_requires_structured_output_support_and_denies_data_collection():
@@ -24,7 +24,7 @@ def test_request_requires_structured_output_support_and_denies_data_collection()
     result = client.complete_json('sys', 'user', SCHEMA)
     url, sent = calls[0]
     assert result.ok and (result.input_tokens, result.output_tokens) == (8, 4)
-    assert url == 'https://openrouter.ai/api/v1/chat/completions' and sent['model'] == 'openai/gpt-oss-120b:free'
+    assert url == 'https://openrouter.ai/api/v1/chat/completions' and sent['model'] == 'test/model:free'
     assert sent['provider'] == {'require_parameters': True, 'data_collection': 'deny'}
     assert sent['reasoning'] == {'effort': 'low', 'exclude': True}
     assert sent['response_format']['json_schema']['strict'] is True and 'max_tokens' in sent

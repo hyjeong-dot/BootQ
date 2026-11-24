@@ -1,6 +1,6 @@
 import json
 
-from app.llm.groq import GroqClient
+from app.llm.groq import GroqClient, reasoning_params
 
 SCHEMA = {'type': 'object', 'properties': {'a': {'type': 'string'}}, 'required': ['a'], 'additionalProperties': False}
 
@@ -55,3 +55,9 @@ def test_gives_up_after_max_retries():
 def test_empty_content_is_an_error():
     client, _ = make_client([(200, {}, ok_body(content=''))])
     assert client.complete_json('sys', 'user', SCHEMA).error_code == 'empty_response'
+
+
+def test_reasoning_params_depend_on_model_family():
+    assert reasoning_params('openai/gpt-oss-20b') == {'reasoning_effort': 'low', 'include_reasoning': False}
+    assert reasoning_params('qwen/qwen3.8-27b') == {'reasoning_effort': 'none', 'reasoning_format': 'hidden'}
+    assert reasoning_params('other/model') == {}

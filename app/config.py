@@ -3,11 +3,11 @@ import os
 from collections.abc import Mapping, MutableMapping
 from pathlib import Path
 
-from app.llm import groq, openrouter
+from app.llm import groq
 
 ROOT = Path(__file__).resolve().parents[1]
 MODEL_ENV = {'groq': 'GROQ_MODEL', 'openrouter': 'OPENROUTER_MODEL'}
-DEFAULT_MODEL = {'groq': groq.DEFAULT_MODEL, 'openrouter': openrouter.DEFAULT_MODEL}
+DEFAULT_MODEL: dict[str, str | None] = {'groq': groq.DEFAULT_MODEL, 'openrouter': None}   # OpenRouter는 기본값 없음
 
 
 def load_env(path: Path | None = None, environ: MutableMapping[str, str] | None = None) -> None:
@@ -22,6 +22,7 @@ def load_env(path: Path | None = None, environ: MutableMapping[str, str] | None 
             environ.setdefault(key.strip(), value.strip().strip('"\''))
 
 
-def resolve_model(provider: str, cli_model: str | None = None, environ: Mapping[str, str] | None = None) -> str:
+def resolve_model(provider: str, cli_model: str | None = None, environ: Mapping[str, str] | None = None) -> str | None:
+    """정해진 모델 이름. 기본값이 없는 공급자(OpenRouter)에서 아무것도 지정하지 않았으면 None."""
     environ = os.environ if environ is None else environ
     return cli_model or environ.get(MODEL_ENV[provider], '').strip() or DEFAULT_MODEL[provider]

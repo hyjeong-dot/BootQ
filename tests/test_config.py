@@ -8,6 +8,11 @@ def test_model_priority_is_cli_then_env_then_default():
     assert resolve_model('groq', None, {'GROQ_MODEL': '  '}) == DEFAULT_MODEL['groq']
 
 
+def test_openrouter_has_no_default_model():
+    assert resolve_model('openrouter', None, {}) is None
+    assert resolve_model('openrouter', None, {'OPENROUTER_MODEL': 'x/y:free'}) == 'x/y:free'
+
+
 def test_each_provider_reads_its_own_variable():
     env = {'GROQ_MODEL': 'g', 'OPENROUTER_MODEL': 'o'}
     assert resolve_model('groq', None, env) == 'g'

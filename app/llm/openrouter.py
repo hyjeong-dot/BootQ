@@ -1,14 +1,16 @@
-"""OpenRouter 클라이언트. 무료 모델(:free)은 하루 50회(충전 이력이 있으면 1,000회), 분당 20회 제한."""
+"""
+OpenRouter 클라이언트. 모델 기본값은 두지 않는다: 무료 제공 여부가 자주 바뀌어(예: gpt-oss-120b:free가 사라짐)
+기본값이 있으면 뜻하지 않게 유료 모델이 호출되거나 실패할 수 있다. 모델은 .env의 OPENROUTER_MODEL이나 --model로 지정한다.
+무료 모델(:free)은 하루 50회(충전 이력이 있으면 1,000회), 분당 20회 제한.
+"""
 from app.llm.openai_compat import ChatCompletionsClient
-
-DEFAULT_MODEL = 'openai/gpt-oss-120b:free'
 
 
 class OpenRouterClient(ChatCompletionsClient):
     url = 'https://openrouter.ai/api/v1/chat/completions'
     rate_limit_headers = ('x-ratelimit-remaining', 'x-ratelimit-reset')
 
-    def __init__(self, api_key: str, model: str = DEFAULT_MODEL, reasoning_effort: str = 'low',
+    def __init__(self, api_key: str, model: str, reasoning_effort: str = 'low',
                  data_collection: str = 'deny', **kwargs):
         super().__init__(api_key, model, **kwargs)
         self.reasoning_effort = reasoning_effort
