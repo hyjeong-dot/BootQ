@@ -3,11 +3,13 @@
 import csv
 from pathlib import Path
 
+from app.core.camp_select import SelectCamp
 from app.core.evaluation import camp_for_rule_baseline
 from app.core.models import Camp, camp_for_matching
 
 ROOT = Path(__file__).resolve().parents[2]
 PROFILE = ROOT / 'data' / 'derived' / 'camp_profile_draft.csv'
+CAMP_RAW = ROOT / 'data' / 'derived' / 'camp_raw.csv'
 MANUAL = ROOT / 'data' / 'private' / 'camp_manual.csv'
 SEP = '|'
 
@@ -57,3 +59,11 @@ def load_matching_camps(variant: str, path: Path = PROFILE, manual_path: Path = 
 def load_camp_names(path: Path = PROFILE) -> dict[str, str]:
     """캠프 ID → 캠프명 (결과 파일·블라인드 풀링용, 캠프 아님 포함)."""
     return {r['source_camp_id']: r['캠프명'] for r in _read(path)}
+
+
+def load_select_camps(raw_path: Path = CAMP_RAW, profile_path: Path = PROFILE,
+                      manual_path: Path = MANUAL) -> list[SelectCamp]:
+    """③ LLM 캠프 선택용 캠프 목록: ①과 같은 캠프 풀에 원본 칸(원래 코드·캠프명)만 붙인다 (docs/EVAL.md)."""
+    pool = {c.id for c in load_matching_camps(RULE, profile_path, manual_path)}
+    return [SelectCamp(r['source_camp_id'], r['직무대분류'], r['직무중분류'], r['상세분류'], r['산업'], r['캠프명'])
+            for r in _read(raw_path) if r['source_camp_id'] in pool]

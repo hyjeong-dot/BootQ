@@ -139,7 +139,7 @@
 - **목적**: 정답 셋 기준으로 슬롯 정확도와 매칭 정확도를 DB·LLM 없이 다시 계산한다 (설계와 지표 정의의 원본: `EVAL.md` "평가 스크립트")
 - **실행 주기**: 수동 (매칭 규칙·어휘·정규화 결과·정답 셋이 바뀔 때)
 - **실행 시간대 기준**: 해당 없음
-- **상태**: ✅ 구현 (3갈래 실행과 결과 기록은 #16)
+- **상태**: ✅ 구현. 3갈래 첫 측정 완료(#16, 결과 `EVAL_RESULTS.md`)
 
 #### 처리 내용
 
@@ -152,7 +152,7 @@
 
 | 입력 | 출력 | 예상 건수 |
 |---|---|---|
-| `eval/answer_set.csv`, `data/derived/slot_trial.jsonl`(또는 정답 슬롯), `data/derived/camp_profile_draft.csv`, `data/vocab/`, `data/private/`의 입력 필드 사전 | `data/derived/eval/<실행 이름>/recommendations.csv`, `slots.csv`, `summary.json`, `data/derived/eval/blind_pool.csv` | 질문 23개, 캠프 수백 개 |
+| `eval/answer_set.csv`, `data/derived/slot_trial.jsonl`(또는 정답 슬롯, 또는 ③의 `--recs data/derived/camp_select.jsonl`), `data/derived/camp_profile_draft.csv`, `data/vocab/`, `data/private/`의 입력 필드 사전 | `data/derived/eval/<실행 이름>/recommendations.csv`, `slots.csv`, `summary.json`, `data/derived/eval/blind_pool.csv` | 질문 23개, 캠프 수백 개 |
 
 #### 실패 / 예외 처리
 
@@ -166,4 +166,6 @@
 
 #### 비고
 - 실행: `uv run python scripts/evaluate.py --variant llm --slots gold`, `--variant rule --slots data/derived/slot_trial.jsonl`, `--add-family 전자·반도체=반도체,전자/기계`
-- 결과 폴더는 캠프명이 들어가므로 git 제외. 커밋하는 수치는 #16에서 캠프명 없이 문서에 적는다
+- ③ 추천 만들기: `uv run python scripts/run_camp_select.py --model openai/gpt-oss-120b` (OpenRouter 유료. 먼저 `--ids E01`로 토큰 확인) → `uv run python scripts/evaluate.py --recs data/derived/camp_select.jsonl --name select_llm`
+- 결과 폴더는 캠프명이 들어가므로 git 제외. 커밋하는 수치는 캠프명 없이 `EVAL_RESULTS.md`에 적는다
+- `summary.json`의 `llm_calls`: 슬롯필링(또는 ③) 호출의 평균 토큰·시간과 시간 중앙값

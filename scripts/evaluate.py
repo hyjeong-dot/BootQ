@@ -15,6 +15,7 @@ import argparse
 import csv
 import hashlib
 import json
+import statistics
 import sys
 from dataclasses import asdict
 from pathlib import Path
@@ -30,7 +31,8 @@ from app.core.matching import build_relation_index  # noqa: E402
 from app.core.models import PostInput  # noqa: E402
 from app.core.slot_filling import company_field_hint, job_field_hint  # noqa: E402
 from app.sources.camps import LLM, PROFILE, VARIANTS, load_camp_names, load_matching_camps  # noqa: E402
-from app.sources.evaluation import ANSWER_SET, SLOT_TRIAL, load_answer_rows, load_recs, load_slot_trial  # noqa: E402
+from app.sources.evaluation import ANSWER_SET, SLOT_TRIAL, load_answer_rows, load_recs, load_recs_metrics, \
+    load_slot_trial  # noqa: E402
 from app.sources.vocab import (PRIVATE_DIR, load_category_camp_type, load_company_industry,  # noqa: E402
                                load_industry_family_pairs, load_job_alias, load_job_relations, load_slot_vocab)
 
@@ -116,7 +118,9 @@ def averages(metrics: list[dict]) -> dict:
     rows = [m for m in metrics if all(isinstance(m.get(k), (int, float)) for k in keys)]
     if not rows:
         return {}
-    return {f'avg_{k}': round(sum(m[k] for m in rows) / len(rows), 2) for k in keys} | {'calls': len(rows)}
+    return ({f'avg_{k}': round(sum(m[k] for m in rows) / len(rows), 2) for k in keys}
+            | {'median_elapsed_seconds': round(statistics.median(m['elapsed_seconds'] for m in rows), 2),
+               'calls': len(rows)})
 
 
 def main() -> int:
@@ -155,6 +159,7 @@ def main() -> int:
     trial_metrics: list[dict] = []
     if args.recs:
         recs = load_recs(args.recs)
+        trial_metrics = load_recs_metrics(args.recs)
         camp_lists = {k.eval_id: recs.get(k.eval_id, ()) for k in keys}
         warnings += [f'{k.eval_id}: 추천 파일에 없음 (추천 없음으로 셈)' for k in keys if k.eval_id not in recs]
     else:
@@ -203,7 +208,7 @@ def main() -> int:
         'answer_set_hash': file_hash(args.answer_set), 'profile_hash': file_hash(args.profile),
         'ids': args.ids or None}
     (out / 'summary.json').write_text(json.dumps(
-        {'config': config, 'summary': asdict(summary), 'slot_calls': averages(trial_metrics),
+        {'config': config, 'summary': asdict(summary), 'llm_calls': averages(trial_metrics),
          'warnings': warnings}, ensure_ascii=False, indent=2, default=str), encoding='utf-8')
     titles = {r['eval_id']: r['title'] for r in answer_rows}
     pool_size = update_blind_pool(args.out_dir / 'blind_pool.csv', blind_pool(matches), names, titles)

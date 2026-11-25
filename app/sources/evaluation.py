@@ -42,3 +42,8 @@ def load_slot_trial(path: Path = SLOT_TRIAL) -> dict[str, tuple[SlotResult, dict
 def load_recs(path: Path) -> dict[str, tuple[str, ...]]:
     """다른 방법(③ LLM 캠프 선택 등)의 추천: 한 줄에 {"eval_id": ..., "camp_ids": [순서대로]}."""
     return {d['eval_id']: tuple(d.get('camp_ids') or ()) for d in _read_jsonl(path)}
+
+
+def load_recs_metrics(path: Path) -> list[dict]:
+    """추천 파일 줄에 호출 기록(metrics)이 있으면 그 목록 (③의 토큰·응답 시간 집계용)."""
+    return [d['metrics'] for d in _read_jsonl(path) if isinstance(d.get('metrics'), dict)]

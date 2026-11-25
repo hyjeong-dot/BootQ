@@ -23,9 +23,9 @@ def test_trade_and_commerce_do_not_share_family(families):
     assert not shares_family('무역', '커머스', families)
 
 
-def test_semiconductor_and_electronics_do_not_share_family(families):
-    # 반도체 77개 vs 전자/기계 25개 비대칭이라 평가 전까지 계열에서 제외
-    assert not shares_family('반도체', '전자/기계', families)
+def test_semiconductor_and_electronics_share_family(families):
+    # 평가 E13 비교 후 포함 (2026-11-25, 99_DECISIONS.md)
+    assert shares_family('반도체', '전자/기계', families)
 
 
 def test_broadcast_and_culture_performance_do_not_share_family(families):
@@ -81,7 +81,7 @@ def test_empty_user_industry_skips_the_step(families):
 
 # 평가용: 계열을 넣고 빼며 비교할 수 있어야 한다
 def test_family_index_is_a_parameter_so_evaluation_can_toggle_a_family():
-    base = load_industry_family_pairs()
+    base = [p for p in load_industry_family_pairs() if p[0] != '전자·반도체']
     without = build_family_index(base)
     with_semi = build_family_index(base + [('전자·반도체', '반도체'), ('전자·반도체', '전자/기계')])
     assert industry_grade(['전자/기계'], ['반도체'], without) == IndustryGrade.MISMATCH
