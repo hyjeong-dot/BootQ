@@ -1,5 +1,6 @@
-from app.core.normalize_v2 import (ANY, CampInput, Manual, Vocab, build_schema, build_system_prompt, build_user_prompt,
-                                   evidence_in_name, merge, v1_item_to_v2, validate_item)
+from app.core.normalize_v2 import (ANY, Approval, CampInput, Manual, Vocab, apply_approval, build_schema,
+                                   build_system_prompt, build_user_prompt, dropped_proposals, evidence_in_name, merge,
+                                   result_hash, review_types, v1_item_to_v2, validate_item)
 from app.sources.prompts import load_prompt
 
 VOCAB = Vocab(
@@ -17,8 +18,8 @@ def llm(**over):
     return {**base, **over}
 
 
-def camp(name='x', jobs=('공간디자인',), industries=('IT',), sub_jobs=(), skills=(), placeholder=False):
-    return CampInput('c', name, jobs, sub_jobs, industries, skills, placeholder)
+def camp(name='x', jobs=('공간디자인',), industries=('IT',), sub_jobs=(), skills=(), placeholder=False, memo=''):
+    return CampInput('c', name, jobs, sub_jobs, industries, skills, placeholder, memo=memo)
 
 
 def test_schema_has_no_way_to_replace_baseline_values():
@@ -113,3 +114,52 @@ def test_v1_replacement_is_not_counted_as_addition():
     assert to_any['remove_industry_suggested'] and to_any['add_industries'] == []
     replaced = v1_item_to_v2({'job_ids': ['공간디자인'], 'industry_ids': ['금융']}, c)
     assert replaced['_v1_industry_replaced'] and replaced['add_industries'] == []
+
+
+# ---------- 검수 승인 ----------
+SERVER = camp('서버&프론트 개발 실무', jobs=('IT일반',), placeholder=True)
+
+
+def test_accept_approves_the_merged_result_only_for_the_same_result_hash():
+    p = merge(SERVER, llm(main_job='SW개발', evidence=['서버&프론트 개발']))
+    approved = apply_approval(SERVER, p, Approval(result_hash(p), 'accept'))
+    assert approved.status == 'approved' and approved.job_ids == ('SW개발',)
+    stale = apply_approval(SERVER, p, Approval('다른결과', 'accept'))   # 다시 돌려 결과가 바뀌면 판정이 맞지 않는다
+    assert stale.status == 'pending_review'
+
+
+def test_reject_falls_back_to_baseline_but_keeps_camp_type_and_skills():
+    p = merge(SERVER, llm(main_job='SW개발', skills=['SQL'], camp_type='EXPLORE', evidence=['서버&프론트 개발']))
+    rejected = apply_approval(SERVER, p, Approval(result_hash(p), 'reject'))
+    assert rejected.status == 'approved' and rejected.job_ids == ('IT일반',) and rejected.industry_ids == ('IT',)
+    assert rejected.camp_type == 'EXPLORE' and rejected.skills == ('SQL',)
+
+
+def test_approval_does_not_touch_manual_or_auto_approved_results():
+    auto = merge(SERVER, llm(evidence=[]))
+    assert apply_approval(SERVER, auto, Approval(result_hash(auto), 'reject')) == auto
+    manual = merge(SERVER, llm(), Manual(job_ids=('SW개발',)))
+    assert apply_approval(SERVER, manual, Approval(result_hash(manual), 'reject')) == manual
+
+
+def test_result_hash_ignores_camp_type_and_skills():
+    a = merge(SERVER, llm(main_job='SW개발', camp_type='EXPLORE', evidence=['서버&프론트 개발']))
+    b = merge(SERVER, llm(main_job='SW개발', camp_type='APPLICATION', skills=['SQL'], evidence=['서버&프론트 개발']))
+    c = merge(SERVER, llm(main_job='IT인프라', evidence=['서버&프론트 개발']))
+    assert result_hash(a) == result_hash(b) != result_hash(c)
+
+
+def test_memo_that_llm_ignored_shows_up_for_review():
+    c = camp('백엔드 개발 입문', jobs=('IT일반',), placeholder=True, memo="main_job='SW개발'")
+    p = merge(c, llm(evidence=[]))
+    assert p.status == 'auto_approved' and review_types(c, p) == ['메모 미반영']
+    followed = merge(c, llm(main_job='SW개발', evidence=['백엔드 개발']))
+    assert '메모 미반영' not in review_types(c, followed)
+
+
+def test_review_types_and_dropped_proposals():
+    c = camp('B2B기술영업 & B2C영업관리', jobs=('기술영업',))
+    proposal = llm(add_jobs=['영업관리'], add_industries=['IT'], evidence=['없는 구절'])
+    p = merge(c, proposal)
+    assert review_types(c, p) == ['근거 검증 실패로 버림']
+    assert dropped_proposals(c, proposal) == ['영업관리']   # 기준에 이미 있는 IT는 잃은 것이 아니다
