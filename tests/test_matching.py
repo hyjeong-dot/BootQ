@@ -3,8 +3,8 @@
 from app.core.industry import ANY, IndustryGrade, build_family_index
 from app.core.matching import (FAMILY_USED, INDUSTRY_ONLY, NO_CANDIDATES, build_relation_index, job_relation,
                                match)
-from app.core.models import (BODY_EXPLICIT, CLOSE, FAMILY, PENDING_REVIEW, SAME, Camp, Candidate, HelpGrade,
-                             MergedSlots, camp_for_matching)
+from app.core.models import (BODY_EXPLICIT, CLOSE, FAMILY, HELP_FROM_BODY, HELP_FROM_CATEGORY, PENDING_REVIEW, SAME,
+                             Camp, Candidate, HelpGrade, MergedSlots, camp_for_matching)
 
 RELATIONS = build_relation_index([
     ('웹개발', 'SW개발', CLOSE),
@@ -75,7 +75,7 @@ def test_same_before_close_when_industry_equal():
 
 
 def test_camp_type_is_last_key():
-    merged = MergedSlots(jobs=(job('SW개발'),), camp_type='EXPERIENCE')
+    merged = MergedSlots(jobs=(job('SW개발'),), camp_type='EXPERIENCE', help_source=HELP_FROM_BODY)
     camps = [camp('mis', ['SW개발'], camp_type='EXPLORE'), camp('none', ['SW개발']),
              camp('hit', ['SW개발'], camp_type='EXPERIENCE'), camp('close_hit', ['웹개발'], camp_type='EXPERIENCE')]
     result = run(merged, camps, limit=4)
@@ -87,6 +87,14 @@ def test_camp_type_is_last_key():
 def test_camp_type_skipped_without_preference_ties_by_id():
     merged = MergedSlots(jobs=(job('SW개발'),))
     camps = [camp('c2', ['SW개발'], camp_type='EXPLORE'), camp('c1', ['SW개발'], camp_type='EXPERIENCE')]
+    result = run(merged, camps)
+    assert ids(result) == ['c1', 'c2'] and result.recommendations[0].help_grade is None
+
+
+def test_camp_type_skipped_when_help_from_category():
+    # category 기본값은 유저가 쓴 말이 아니라 정렬에 쓰지 않는다 (#35)
+    merged = MergedSlots(jobs=(job('SW개발'),), camp_type='EXPERIENCE', help_source=HELP_FROM_CATEGORY)
+    camps = [camp('c2', ['SW개발'], camp_type='EXPERIENCE'), camp('c1', ['SW개발'], camp_type='EXPLORE')]
     result = run(merged, camps)
     assert ids(result) == ['c1', 'c2'] and result.recommendations[0].help_grade is None
 
@@ -191,6 +199,16 @@ def test_industry_only_mode():
     assert INDUSTRY_ONLY in result.flags
     assert result.recommendations[1].industry_grade == IndustryGrade.FAMILY
     assert result.recommendations[1].camp_industry == '은행'
+
+
+def test_industry_only_mode_ignores_camp_type():
+    # 직무가 없으면 camp_type이 산업 안의 첫 키가 되므로 쓰지 않는다 (#35). 같은 산업 등급 안은 캠프 ID 순
+    merged = MergedSlots(industries=(ind('금융'),), camp_type='EXPERIENCE', help_source=HELP_FROM_BODY)
+    camps = [camp('m2', ['인사'], ['금융'], 'EXPERIENCE'), camp('m1', ['회계'], ['금융'], 'EXPLORE'),
+             camp('fam', ['SW개발'], ['은행'], 'EXPERIENCE')]
+    result = run(merged, camps)
+    assert ids(result) == ['m1', 'm2', 'fam']
+    assert all(r.help_grade is None for r in result.recommendations)
 
 
 def test_nothing_to_match():

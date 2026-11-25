@@ -7,7 +7,8 @@
   1. 직무 등급 A(SAME·CLOSE) / B(FAMILY) / 제외. B는 A가 3개 미만일 때만, 리뷰 플래그
   2. 산업 등급: 일치 > 계열 > ANY > 불일치 (유저 산업이 없으면 건너뜀)
   3. 직무 SAME > CLOSE
-  4. desired_help ↔ camp_type: 일치 > 캠프 camp_type 없음 > 불일치 (선호 없음이면 건너뜀)
+  4. desired_help ↔ camp_type: 일치 > 캠프 camp_type 없음 > 불일치
+     유저 직무가 있고 desired_help 출처가 본문일 때만 (산업만 매칭·category 기본값·선호 없음이면 건너뜀)
   마지막 동점은 캠프 ID 순
 """
 from collections.abc import Iterable, Mapping, Sequence
@@ -15,8 +16,8 @@ from dataclasses import dataclass
 
 from app.core.industry import ANY, FamilyIndex, IndustryGrade, industry_grade, shares_family
 from app.core.job_relation import pair
-from app.core.models import (CLOSE, FAMILY, SAME, Camp, Candidate, HelpGrade, MatchResult, MergedSlots,
-                             Recommendation)
+from app.core.models import (CLOSE, FAMILY, HELP_FROM_BODY, SAME, Camp, Candidate, HelpGrade, MatchResult,
+                             MergedSlots, Recommendation)
 
 LIMIT = 3
 MAX_GUARANTEED_JOBS = 3        # 복수 직무 분배에서 자리를 보장하는 직무 수 (병합 순서 앞부터)
@@ -39,6 +40,13 @@ def job_relation(user_job: str, camp_job: str, relations: RelationIndex) -> str 
     if user_job == camp_job:
         return SAME
     return relations.get(pair(user_job, camp_job))
+
+
+def preferred_camp_type(merged: MergedSlots) -> str | None:
+    """정렬 4단계에 쓸 선호 camp_type. 직무가 있고 desired_help를 본문에서 뽑았을 때만 (02_BACKEND.md 5장 "정렬 4단계 적용 조건")."""
+    if not merged.jobs or merged.help_source != HELP_FROM_BODY:
+        return None
+    return merged.camp_type
 
 
 def help_grade(preferred: str | None, camp_type: str | None) -> HelpGrade | None:
@@ -117,7 +125,7 @@ def _job_fit(camp: Camp, order: int, job: Candidate, ind: IndustryGrade | None, 
 def _score(camp: Camp, merged: MergedSlots, relations: RelationIndex, families: FamilyIndex) -> _Scored:
     ind = industry_grade((c.value for c in merged.industries), camp.industry_ids, families)
     ind_cand, camp_ind = _industry_source(camp, merged.industries, ind, families)
-    hlp = help_grade(merged.camp_type, camp.camp_type)
+    hlp = help_grade(preferred_camp_type(merged), camp.camp_type)
     fits = tuple(_job_fit(camp, i, job, ind, hlp, relations) for i, job in enumerate(merged.jobs))
     present = [f for f in fits if f is not None]
     best = min(present, key=lambda f: f.key) if present else None

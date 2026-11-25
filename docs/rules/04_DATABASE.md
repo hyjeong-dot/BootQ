@@ -142,7 +142,7 @@ erDiagram
 | recommendation | 추천 결과. 슬롯 JSON은 JSONB, 처리시간·토큰·오류코드 | 설계 |
 | feedback | 카드별 피드백: rec_id, camp_id, 순위, 👍/👎, 👎 사유 | 설계 |
 | vocab_skill | 스킬 어휘. 현재 `data/vocab/skills.csv` (2026-11-25 추가) | 설계 |
-| category_camp_type | question_category → camp_type 기본값 (desired_help가 UNKNOWN일 때만 사용, 빈 값 = 선호 없음). 원본 `data/vocab/category_camp_type.csv` (2026-11-25 추가) | 설계 |
+| category_camp_type | question_category → camp_type 기본값 (desired_help가 UNKNOWN일 때만 병합 결과에 넣음, 빈 값 = 선호 없음). 정렬 4단계는 본문 출처만 쓰므로 지금은 매칭에 쓰이지 않는다(2026-11-25, #35, `02_BACKEND.md` 5장). 원본 `data/vocab/category_camp_type.csv` (2026-11-25 추가) | 설계 |
 | schema_migration | 적용한 마이그레이션 파일 이력 | 설계 |
 
 > 어휘·관계 테이블(vocab_*, job_relation, industry_family, job_alias, company_industry, category_camp_type)은 서버 시작 시 메모리 로드, `/api/admin/vocab/reload`로 재로드.
