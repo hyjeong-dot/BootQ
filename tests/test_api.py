@@ -116,6 +116,9 @@ def test_post_then_stream_returns_cards_and_saves_record(seeded):
     assert [c['camp_id'] for c in cards] == ['m1', 'm3', 'm2']
     assert cards[0]['camp_name'] == '가짜 식품 마케팅 캠프'
     assert "'마케팅'" in cards[0]['reason'] and all(c['review'] is False for c in cards)
+    # 표시용 해시태그: 주 직무 → 산업(ANY 제외). 모집기간은 데이터가 없어 null
+    assert [c['tags'] for c in cards] == [['마케팅', '식품'], ['브랜드마케팅', '화장품'], ['마케팅']]
+    assert all(c['recruit_start'] is None and c['recruit_end'] is None for c in cards)
     assert llm.calls == 1
     assert '자리표시직무' not in llm.schema['properties']['jobs']['items']['properties']['job']['enum']
 

@@ -13,3 +13,5 @@ eval
 docs
 tests
 CLAUDE.md
+frontend/node_modules
+frontend/dist

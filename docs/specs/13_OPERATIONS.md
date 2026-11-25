@@ -1,18 +1,18 @@
 # 13. 운영 / 런북 (Runbook)
 
 > 문서 상태: 산출물 문서 — **간단한 로컬 런북** (2026-11-25 결정: 로컬 실행만이라 실행·중지·DB 재생성·LLM 한도 대응만 다룬다)
-> 명령어·경로 중 `(구현 후 확인)` 표시는 아직 코드가 없는 계획값이다. 해당 기능을 구현하는 작업 안에서 실제 값으로 고친다.
+> 명령어·경로는 구현된 값이다 (2026-11-26 확인, #17).
 
 ## 1. 서비스 운영 정보
 
 | 항목 | 내용 |
 |---|---|
 | 실행 위치 (서버/PC) | 개발 PC (macOS) 로컬 Docker Compose |
-| 시작 방법 (명령어/바로가기) | `docker compose up -d` (구현 후 확인) |
+| 시작 방법 (명령어/바로가기) | `docker compose up -d --build` (db + api. api가 시작할 때 마이그레이션을 적용한다) |
 | 중지 방법 | `docker compose down` (DB 볼륨 유지) |
-| 정상 동작 확인 방법 (URL, 헬스체크) | `http://127.0.0.1:{포트}/docs` 열림, 데모 페이지 `/`에서 샘플 글 등록 → 토스트 표시 (포트는 구현 후 확인) |
+| 정상 동작 확인 방법 (URL, 헬스체크) | `http://127.0.0.1:8000/docs` 열림, 데모 페이지 `http://127.0.0.1:8000/`에서 예시 글 등록 → 토스트 표시 (포트는 `.env`의 `API_PORT`, 기본 8000) |
 | 로그 위치 | `docker compose logs api` (JSON 구조화 로그), 요청별 처리시간·토큰·오류코드는 DB `recommendation` 테이블, LLM 호출 기록은 `data/derived/llm_calls.jsonl` |
-| 설정 파일 위치 | `.env` (형식은 `.env.example`), `docker-compose.yml` (구현 후 확인) |
+| 설정 파일 위치 | `.env` (형식은 `.env.example`), `compose.yaml` |
 | 의존 외부 서비스 (API 키, DB 등) | Groq API(`GROQ_API_KEY`), OpenRouter API(`OPENROUTER_API_KEY`, 평가 ③만), PostgreSQL 17 컨테이너 |
 
 ## 2. 장애 대응 절차
@@ -48,7 +48,7 @@
 | 백업 주기 / 방법 | 작업이 끝날 때마다 비공개 별도 git 저장소에 커밋·push (06_INFRA_DEPLOY.md). `data/private/` 폴더 자체가 별도 git 저장소(중첩 저장소)이고, BootQ는 `.gitignore`로 이 폴더를 무시하므로 두 저장소가 섞이지 않는다 |
 | 백업 명령 | `scripts/backup_private.sh "무엇을 바꿨는지"` — LLM 결과를 `data/private/llm/`에 복사한 뒤 커밋·push. 바뀐 것이 없으면 아무것도 하지 않는다 |
 | 백업 보관 위치 | 비공개 GitHub 저장소 `hyjeong-dot/BootQ-private` (private, 공유하지 않음), 브랜치 `main` |
-| 복구 절차 | ① `git clone https://github.com/hyjeong-dot/BootQ-private.git data/private` (BootQ 루트에서. `data/private/`가 이미 있으면 먼저 다른 이름으로 옮긴다) ② `cp data/private/llm/*.jsonl data/derived/`로 LLM 결과를 되돌린 뒤, 나머지 `data/derived/`는 BAT-001~002를 실행하고 BAT-003을 `--report-only`로 실행해 다시 만든다 (LLM 호출 없음) ③ DB는 백업하지 않고 재생성: 볼륨 삭제(`docker compose down -v`) → 마이그레이션 적용 → 어휘·캠프 적재 배치(BAT-006) 실행 (명령어는 구현 후 확인) |
+| 복구 절차 | ① `git clone https://github.com/hyjeong-dot/BootQ-private.git data/private` (BootQ 루트에서. `data/private/`가 이미 있으면 먼저 다른 이름으로 옮긴다) ② `cp data/private/llm/*.jsonl data/derived/`로 LLM 결과를 되돌린 뒤, 나머지 `data/derived/`는 BAT-001~002를 실행하고 BAT-003을 `--report-only`로 실행해 다시 만든다 (LLM 호출 없음) ③ DB는 백업하지 않고 재생성: 볼륨 삭제(`docker compose down -v`) → `docker compose up -d --build`(마이그레이션 자동 적용) → `uv run python scripts/load_db.py`(BAT-006) |
 | 복구 테스트 마지막 확인일 | 2026-11-25 — 백업 저장소를 새 폴더에 clone해 `data/private/`와 비교, `llm/`의 두 파일을 `data/derived/`와 비교, 모두 차이 없음 (① 확인, ②는 파일 일치까지. ③은 DB·적재 배치 구현 후) |
 
 ## 4. 정기 점검 항목

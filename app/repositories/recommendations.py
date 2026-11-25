@@ -1,9 +1,12 @@
 """글·추천·카드·피드백 (API-001~003, 추천 처리 저장)."""
 from dataclasses import dataclass
+from datetime import date
 from uuid import UUID
 
 from psycopg import AsyncConnection
 from psycopg.types.json import Jsonb
+
+from app.core.models import camp_hashtags
 
 PROCESSING, DONE, FAILED = 'processing', 'done', 'failed'
 
@@ -59,6 +62,9 @@ class Card:
     camp_name: str
     reason: str
     review: bool
+    tags: tuple[str, ...] = ()
+    recruit_start: date | None = None
+    recruit_end: date | None = None
 
 
 @dataclass(frozen=True)
@@ -115,11 +121,24 @@ async def get_for_post(conn: AsyncConnection, post_id: UUID) -> RecommendationVi
     if row is None:
         return None
     rec_id, status = row
+    # 해시태그는 지금의 camp_profile로 만든다 (표시용이라 추천 시점 값을 따로 저장하지 않음)
     cur = await conn.execute(
-        """SELECT i.rank, i.source_camp_id, r.name, i.reason, i.review
-           FROM recommendation_item i JOIN camp_raw r USING (source, source_camp_id)
+        """SELECT i.rank, i.source_camp_id, r.name, i.reason, i.review, r.recruit_start, r.recruit_end,
+                  p.status, p.job_ids, p.industry_ids, p.skills, p.tags,
+                  p.base_job_ids, p.base_industry_ids, p.base_skills
+           FROM recommendation_item i
+           JOIN camp_raw r USING (source, source_camp_id)
+           LEFT JOIN camp_profile p USING (source, source_camp_id)
            WHERE i.recommendation_id = %s ORDER BY i.rank""", (rec_id,))
-    return RecommendationView(rec_id, status, tuple(Card(*r) for r in await cur.fetchall()))
+    cards = []
+    for (rank, camp_id, name, reason, review, start, end,
+         p_status, jobs, inds, skills, tags, b_jobs, b_inds, b_skills) in await cur.fetchall():
+        hashtags = () if p_status is None else camp_hashtags(
+            status=p_status, job_ids=tuple(jobs), industry_ids=tuple(inds), skills=tuple(skills),
+            tags=tuple(tags), base_job_ids=tuple(b_jobs), base_industry_ids=tuple(b_inds),
+            base_skills=tuple(b_skills))
+        cards.append(Card(rank, camp_id, name, reason, review, hashtags, start, end))
+    return RecommendationView(rec_id, status, tuple(cards))
 
 
 async def get_card_camp(conn: AsyncConnection, rec_id: UUID, rank: int) -> tuple[str, str] | None:

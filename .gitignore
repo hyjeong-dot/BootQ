@@ -6,3 +6,5 @@ docs/INTERN_REVIEW.md
 __pycache__/
 .venv/
 data/private/
+frontend/node_modules/
+frontend/dist/

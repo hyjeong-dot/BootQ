@@ -2,7 +2,7 @@
 
 > 문서 상태: ✅ 완료 (2026-11-25)
 > 버전을 명시하지 않으면 AI마다 다른 버전을 가정해 코드가 꼬인다. 반드시 구체적인 버전까지 결정한다.
-> 사전 기입(2026-11-24): 기존 설계 메모에서 정해진 종류(언어·프레임워크·DB)는 기록했고, **버전은 아직 정해진 적이 없어 ❓로 남겼다.**
+> 사전 기입(2026-11-24): 기존 설계 메모에서 정해진 종류(언어·프레임워크·DB)는 기록했고, **버전은 아직 정해진 적이 없어 ❓로 남겼다.** (이후 모두 결정됨)
 
 ## 1. 개발 환경
 
@@ -50,9 +50,9 @@
 
 ### Node.js 버전 / 패키지 매니저
 - 상태: ✅ 결정
-- 결정: **Node 24 LTS + npm** (`package-lock.json` 커밋). 빌드는 **`tsc`만 사용** (번들러 없음)
-- 이유: Active LTS, npm은 Node 기본 포함. 페이지 한 장이라 번들러 없이 TS → JS 컴파일만 한다 (의존성 최소)
-- ⚠️ 현재 PC에는 Node 25.9.0(LTS 아님)이 설치되어 있다. 프론트 작업 전에 Node 24를 설치하고 `.nvmrc`(또는 `package.json`의 `engines`)로 고정한다
+- 결정: **Node 26 LTS + npm** (`package-lock.json` 커밋). 빌드는 **`tsc`만 사용** (번들러 없음)
+- 이유: 2026-10부터 Active LTS(24는 Maintenance LTS로 내려감, 25는 LTS가 되지 않는 홀수 버전이고 지원 종료). npm은 Node 기본 포함. 페이지 한 장이라 번들러 없이 TS → JS 컴파일만 한다 (의존성 최소)
+- Node 26.13.1 설치 (2026-11-26, #15). `frontend/.nvmrc`와 `package.json`의 `engines`(`>=26 <27`)로 고정. 처음엔 24로 정했다가 같은 날 26으로 바꿈 (99_DECISIONS.md)
 - 결정일: 2026-11-25
 
 ## 4. 데이터베이스 (버전만 — 상세 규칙은 04_DATABASE.md)
@@ -74,10 +74,10 @@
 | ASGI 서버 | uvicorn | 0.54.0 (`uv.lock`) | `uv pip show uvicorn` |
 | DB 드라이버 | psycopg 3 (`psycopg[binary]`, libpq 포함) | 3.3.9 (`uv.lock`), 커넥션 풀 `psycopg-pool` 3.3.3 | `uv pip show psycopg` |
 | 빌드 도구 | uv | 0.13.9 (로컬·CI 동일하게 고정) | `uv --version` |
-| 프론트 언어 | TypeScript | 설치 시점 최신 안정판 (설치 후 기록) | `npx tsc --version` |
+| 프론트 언어 | TypeScript | 7.0.2 (`frontend/package-lock.json`) | `npx tsc --version` |
 | 프론트 빌드 | tsc (번들러 없음) | TypeScript와 동일 | - |
 | 프론트 프레임워크 | 없음 | - | - |
-| Node.js | Node.js + npm | 24 LTS (현재 PC는 25.9.0 → 교체 필요) | `node --version` |
+| Node.js | Node.js + npm | 26 LTS (26.13.1, npm 11.20.0. `frontend/.nvmrc`, `engines`) | `node --version` |
 | DBMS | PostgreSQL | 17 (`postgres:17`) | `psql --version` |
 | 컨테이너 | Docker | 현재 29.4.0 | `docker --version` |
 | 테스트 | pytest | 9.2.0 (`uv.lock`) | `uv run pytest --version` |

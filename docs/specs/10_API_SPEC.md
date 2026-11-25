@@ -146,7 +146,8 @@
 ```
 event: recommendation
 data: {"recommendation_id": "uuid", "status": "done", "cards": [
-        {"rank": 1, "camp_id": "fffcfc1ae457", "camp_name": "가짜 캠프명", "reason": "글에 쓴 '마케팅'에 맞춘 마케팅 캠프예요.", "review": false}
+        {"rank": 1, "camp_id": "fffcfc1ae457", "camp_name": "가짜 캠프명", "reason": "글에 쓴 '마케팅'에 맞춘 마케팅 캠프예요.", "review": false,
+         "tags": ["마케팅", "식품"], "recruit_start": null, "recruit_end": null}
       ]}
 
 event: timeout
@@ -158,7 +159,9 @@ data: {"recommendation_id": "uuid"}
 | status | `done` 또는 `failed` |
 | cards | 0~3장, rank 순. **비어 있으면 토스트를 띄우지 않는다** (추천 없음·게이트 종료·오류 모두 같음. end_reason·error_code는 보내지 않는다 — 화면에는 차이가 없고 로그·DB에서 본다) |
 | cards[].camp_id | 캠프 ID (`source_camp_id`). 피드백 때 그대로 보낸다 |
-| cards[].review | 리뷰 플래그 (B등급·산업만 매칭). 데모 화면에서 표시 여부는 #15에서 |
+| cards[].review | 리뷰 플래그 (B등급·산업만 매칭). 데모 화면은 안내 문구를 붙인다 (SCR-001) |
+| cards[].tags | 표시용 해시태그 (`#` 없이) 0~4개. 순서: 캠프 직무 → 산업(ANY 제외) → 스킬 → 표시 태그, 중복 제거. 대표 어휘 이름만 쓴다. 고르는 규칙은 `core.models.camp_hashtags` (검수 전 캠프는 기준 칸). 결과를 읽을 때 현재 camp_profile에서 만든다 (2026-11-26, #15) |
+| cards[].recruit_start / recruit_end | 모집기간 `YYYY-MM-DD` 또는 `null` (camp_raw). 지금 데이터에는 모집기간이 없어 모두 `null` → 화면은 "모집기간 정보 없음" (2026-11-26, #15) |
 
 - `timeout`: 45초 동안 `processing`이면 보낸다 (슬롯필링 최악 약 30초 + 여유). 처리는 계속되므로 다시 접속하면 결과를 받을 수 있다
 - keep-alive: 15초마다 주석 줄(`: ping`)을 보낸다

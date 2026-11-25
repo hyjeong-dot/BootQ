@@ -6,7 +6,7 @@
 from dataclasses import dataclass, field
 from enum import IntEnum
 
-from app.core.industry import IndustryGrade
+from app.core.industry import ANY, IndustryGrade
 
 # 병합 후보의 출처 (병합 우선순위: 본문 명시 > 입력 필드 > 본문 추론)
 BODY_EXPLICIT = 'body_explicit'
@@ -77,6 +77,27 @@ def camp_for_matching(*, id: str, name: str, status: str, is_camp: bool,
     if not is_camp:
         return None
     return Camp(id, name, tuple(job_ids), tuple(industry_ids), camp_type or None, recruiting)
+
+
+HASHTAG_LIMIT = 4
+
+
+def camp_hashtags(*, status: str, job_ids: tuple[str, ...], industry_ids: tuple[str, ...],
+                  skills: tuple[str, ...], tags: tuple[str, ...],
+                  base_job_ids: tuple[str, ...], base_industry_ids: tuple[str, ...],
+                  base_skills: tuple[str, ...], limit: int = HASHTAG_LIMIT) -> tuple[str, ...]:
+    """카드에 보여줄 해시태그 (API-002 cards[].tags, `#` 없이).
+    순서: 주 직무 → 산업(ANY 제외) → 스킬 → 표시 태그, 중복 제거 후 앞에서 limit개.
+    pending_review는 매칭과 같게 기준 칸을 쓴다 (camp_for_matching). 표시 태그는 기준 칸이 없어 검수 후에만 쓴다."""
+    if status == PENDING_REVIEW:
+        groups = (base_job_ids[:1], base_industry_ids, base_skills, ())
+    else:
+        groups = (job_ids[:1], industry_ids, skills, tags)
+    out: list[str] = []
+    for value in (v for g in groups for v in g):
+        if value and value != ANY and value not in out:
+            out.append(value)
+    return tuple(out[:limit])
 
 
 class HelpGrade(IntEnum):
