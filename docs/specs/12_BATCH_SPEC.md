@@ -34,7 +34,7 @@
 | BAT-002 | 기준 프로파일 (C단계) | 수동 | 매핑표만으로 새 어휘로 옮긴 규칙 기준선, LLM 없음 (`scripts/build_baseline.py`) | 🔄 |
 | BAT-003 | LLM 정규화 (D단계, v2) | 수동 | 기준선 + LLM 추가분 + 수동 보정 + 검수 승인 → camp_profile, 검수 목록 (`scripts/normalize_camps.py`, 상세 2장) | ✅ |
 | BAT-004 | 매핑표 검사 | 수동 | 직무·산업·상세분류 매핑표 누락·잉여 검사 (`scripts/check_*_map.py`) | ✅ |
-| BAT-005 | 평가 | 수동 | 정답 셋 기준 슬롯·매칭 지표 계산, 3갈래 비교 | 📝 |
+| BAT-005 | 평가 | 수동 | 정답 셋 기준 슬롯·매칭 지표 계산, 3갈래 비교 (`scripts/evaluate.py`, 상세 2장) | ✅ |
 | BAT-006 | DB 적재 | 수동 | 어휘·관계·camp_raw·camp_profile 파일 → PostgreSQL | 📝 |
 
 > 현재 BAT-001~003은 파일(`data/derived/`)로 출력한다. DB 도입 후 출력 대상을 DB로 바꿀지(BAT-006과 합칠지)는 04_DATABASE.md 결정 후 정한다.
@@ -131,3 +131,39 @@
 - **메모는 필드 형식으로 쓴다**: 예) `main_job='심사·신용평가', add_industries=['금융']. evidence=['기업 심사', '금융공기업']`. 문장형 메모("주 직무 ○○ 검토")는 LLM이 따르지 않는 경우가 있었다
 - 하루 예산 가드는 로컬 호출 기록의 오늘 합계를 본다. 키를 바꿔 같은 날 이어 돌릴 때는 `--max-tokens-today`를 (이미 쓴 양 + 새 키 한도)로 준다
 - 승인 기록과 검수 목록은 캠프명·원래 코드가 드러나므로 git 제외(`data/private/`)
+
+---
+
+### BAT-005. 평가
+
+- **목적**: 정답 셋 기준으로 슬롯 정확도와 매칭 정확도를 DB·LLM 없이 다시 계산한다 (설계와 지표 정의의 원본: `EVAL.md` "평가 스크립트")
+- **실행 주기**: 수동 (매칭 규칙·어휘·정규화 결과·정답 셋이 바뀔 때)
+- **실행 시간대 기준**: 해당 없음
+- **상태**: ✅ 구현 (3갈래 실행과 결과 기록은 #16)
+
+#### 처리 내용
+
+1. 정답 셋, 슬롯(시험 결과 파일 또는 정답 슬롯), 캠프(정규화 산출물, 변형 ①/②), 어휘, 입력 필드 사전을 읽는다
+2. 질문마다 `app/core/evaluation.py`: 1차 게이트 → 슬롯 → 입력 필드 사전 변환 → 병합 → 2차 게이트 → 매칭(모집 중 검사 끔). `--recs`면 주어진 추천 목록을 그대로 쓴다
+3. 질문별 판정(허용/불허/미판정, ideal)과 지표를 계산한다
+4. 결과 파일을 쓰고 콘솔에 요약한다
+
+#### 대상 데이터
+
+| 입력 | 출력 | 예상 건수 |
+|---|---|---|
+| `eval/answer_set.csv`, `data/derived/slot_trial.jsonl`(또는 정답 슬롯), `data/derived/camp_profile_draft.csv`, `data/vocab/`, `data/private/`의 입력 필드 사전 | `data/derived/eval/<실행 이름>/recommendations.csv`, `slots.csv`, `summary.json`, `data/derived/eval/blind_pool.csv` | 질문 23개, 캠프 수백 개 |
+
+#### 실패 / 예외 처리
+
+- **재시도**: 없음 (파일만 읽음)
+- **부분 실패 시**: 정답 셋에 있는데 슬롯 파일에 없는 질문은 슬롯 없음(추천 없음)으로 처리하고 콘솔에 경고. 정답 셋의 캠프 ID가 캠프 파일에 없으면 경고
+- **중복 실행 방지**: 없음 (같은 입력이면 같은 결과, 실행 이름 폴더를 덮어씀. 블라인드 풀링 파일은 합쳐서 다시 씀)
+- **알림**: 없음 (콘솔 요약)
+
+#### 실행 이력 기록
+- `summary.json`에 실행 설정(변형, 슬롯 출처·해시, 계열 변경, 정답 셋 해시)
+
+#### 비고
+- 실행: `uv run python scripts/evaluate.py --variant llm --slots gold`, `--variant rule --slots data/derived/slot_trial.jsonl`, `--add-family 전자·반도체=반도체,전자/기계`
+- 결과 폴더는 캠프명이 들어가므로 git 제외. 커밋하는 수치는 #16에서 캠프명 없이 문서에 적는다
