@@ -1,0 +1,15 @@
+# 회사 원본·파생 데이터, 시크릿, 로컬 환경은 이미지에 넣지 않는다
+.env
+.git
+.github
+.venv
+.pytest_cache
+**/__pycache__
+data/raw
+data/private
+data/derived
+data/samples
+eval
+docs
+tests
+CLAUDE.md

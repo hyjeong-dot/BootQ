@@ -1,0 +1,39 @@
+# 로컬 실행 (docs/rules/06_INFRA_DEPLOY.md). 포트는 127.0.0.1에만 게시한다.
+#   docker compose up -d db        DB만 (테스트·스크립트용)
+#   docker compose up -d --build   DB + API (http://127.0.0.1:8000/docs)
+# 계정은 .env의 POSTGRES_USER·POSTGRES_PASSWORD·POSTGRES_DB (.env.example 참고)
+
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-bootq}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bootq}
+      POSTGRES_DB: ${POSTGRES_DB:-bootq}
+      TZ: Asia/Seoul
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro    # 볼륨을 처음 만들 때 bootq_test 생성
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+  api:
+    build: .
+    environment:
+      # 컨테이너끼리는 서비스 이름(db)과 내부 포트로. .env의 DATABASE_URL(호스트용)보다 이 값이 우선한다
+      DATABASE_URL: postgresql://${POSTGRES_USER:-bootq}:${POSTGRES_PASSWORD:-bootq}@db:5432/${POSTGRES_DB:-bootq}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+    ports:
+      - "127.0.0.1:${API_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:

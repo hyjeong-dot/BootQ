@@ -70,7 +70,9 @@
 | 구분 | 도구 | 버전 | 확인 명령어 |
 |---|---|---|---|
 | 백엔드 언어 | Python | 3.13 (`.python-version`, 로컬 3.13.15) | `uv run python --version` |
-| 백엔드 프레임워크 | FastAPI | 설치 시점 최신 안정판 (설치 후 기록) | `uv pip show fastapi` |
+| 백엔드 프레임워크 | FastAPI | 0.165.0 (`uv.lock`, 2026-11-26 설치) | `uv pip show fastapi` |
+| ASGI 서버 | uvicorn | 0.54.0 (`uv.lock`) | `uv pip show uvicorn` |
+| DB 드라이버 | psycopg 3 (`psycopg[binary]`, libpq 포함) | 3.3.9 (`uv.lock`). 커넥션 풀 `psycopg-pool`은 #14에서 추가 | `uv pip show psycopg` |
 | 빌드 도구 | uv | 0.13.9 (로컬·CI 동일하게 고정) | `uv --version` |
 | 프론트 언어 | TypeScript | 설치 시점 최신 안정판 (설치 후 기록) | `npx tsc --version` |
 | 프론트 빌드 | tsc (번들러 없음) | TypeScript와 동일 | - |
@@ -79,7 +81,9 @@
 | DBMS | PostgreSQL | 17 (`postgres:17`) | `psql --version` |
 | 컨테이너 | Docker | 현재 29.4.0 | `docker --version` |
 | 테스트 | pytest | 9.2.0 (`uv.lock`) | `uv run pytest --version` |
-| CI | GitHub Actions | `actions/checkout@v7`, `astral-sh/setup-uv@v10.4.0` | `.github/workflows/ci.yml` |
+| 비동기 테스트 | anyio pytest 플러그인 | anyio 4.16.0 (`uv.lock`) | `uv pip show anyio` |
+| CI | GitHub Actions | `actions/checkout@v7`, `astral-sh/setup-uv@v10.4.0`, 서비스 컨테이너 `postgres:17` | `.github/workflows/ci.yml` |
+| API 이미지 | Python + uv | `python:3.13-slim`, `ghcr.io/astral-sh/uv:0.13.9` | `Dockerfile` |
 
 ## 6. 버전 정책
 

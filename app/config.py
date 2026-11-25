@@ -26,3 +26,19 @@ def resolve_model(provider: str, cli_model: str | None = None, environ: Mapping[
     """정해진 모델 이름. 기본값이 없는 공급자(OpenRouter)에서 아무것도 지정하지 않았으면 None."""
     environ = os.environ if environ is None else environ
     return cli_model or environ.get(MODEL_ENV[provider], '').strip() or DEFAULT_MODEL[provider]
+
+
+DEFAULT_DATABASE_URL = 'postgresql://bootq:bootq@127.0.0.1:5432/bootq'
+DEFAULT_TEST_DATABASE_URL = 'postgresql://bootq:bootq@127.0.0.1:5432/bootq_test'
+
+
+def database_url(environ: Mapping[str, str] | None = None) -> str:
+    """개발 DB 접속 주소: DATABASE_URL > 기본값(Compose db를 호스트에서 볼 때). API 컨테이너는 Compose가 DATABASE_URL을 넣는다."""
+    environ = os.environ if environ is None else environ
+    return environ.get('DATABASE_URL', '').strip() or DEFAULT_DATABASE_URL
+
+
+def testing_database_url(environ: Mapping[str, str] | None = None) -> str:
+    """테스트 DB 접속 주소: TEST_DATABASE_URL > 기본값(bootq_test). 개발 DB와 섞이지 않게 별도 변수."""
+    environ = os.environ if environ is None else environ
+    return environ.get('TEST_DATABASE_URL', '').strip() or DEFAULT_TEST_DATABASE_URL

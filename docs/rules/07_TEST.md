@@ -33,8 +33,9 @@
 ### 테스트 프레임워크
 - 상태: ✅ 결정
 - 선택지 예: JUnit 5 + AssertJ / Vitest / Jest / pytest / Playwright(E2E)
-- 결정: pytest. async repositories·services 테스트용으로 비동기 테스트 플러그인(pytest-asyncio 또는 anyio)을 추가한다. 프론트는 테스트 없이 `tsc --noEmit` 타입 검사만
-- 결정일: 2026-11-24 (비동기·프론트 보완 2026-11-25)
+- 결정: pytest. async repositories·services 테스트용 비동기 플러그인은 **anyio의 pytest 플러그인**(`@pytest.mark.anyio`, 백엔드 asyncio 하나). 프론트는 테스트 없이 `tsc --noEmit` 타입 검사만
+- 이유(anyio): FastAPI(Starlette)가 이미 의존하는 라이브러리라 의존성이 늘지 않고, #14의 API 테스트(httpx AsyncClient)도 같은 방식으로 쓴다 (2026-11-26, #13. pytest-asyncio와 둘 중 고르기로 열려 있던 것을 정함)
+- 결정일: 2026-11-24 (비동기·프론트 보완 2026-11-25, 플러그인 선택 2026-11-26)
 
 ### 테스트 DB / 외부 의존성 처리
 - 상태: ✅ 결정
@@ -42,6 +43,10 @@
 - 결정:
   - LLM은 실제로 호출하지 않는다 — transport·sleep 주입으로 가짜 응답 사용 (현재 구현 방식)
   - DB: **Compose Postgres에 별도 테스트 DB(`bootq_test`)** — 테스트 시작 시 마이그레이션 적용, 테스트마다 트랜잭션 롤백. CI는 GitHub Actions의 Postgres 17 서비스 컨테이너로 동일하게
+    - 접속: `TEST_DATABASE_URL`(기본 `postgresql://bootq:bootq@127.0.0.1:5432/bootq_test`). 개발 DB(`DATABASE_URL`)는 테스트가 건드리지 않는다
+    - `bootq_test`는 Compose의 Postgres 초기화 스크립트(`db/init/`)가 처음 볼륨을 만들 때 만든다
+    - DB 테스트에는 `db` 마커를 붙인다. **DB에 연결할 수 없으면 로컬에서는 사유를 보여주고 건너뛰고, `BOOTQ_REQUIRE_DB=1`(CI)이면 실패한다** — core 작업은 Docker 없이 테스트할 수 있게 하되, CI에서 DB 테스트가 조용히 빠지지 않게 (2026-11-26, #13)
+    - 커밋 전 전체 실행(3장)은 `docker compose up -d db` 후 돌린다. 건너뛴 테스트가 있으면 pytest 요약에 `skipped`로 보인다
   - 평가는 DB·LLM 없이 고정 슬롯 JSON + 고정 캠프 데이터로 `core.matching` 직접 호출
   - 테스트는 git 제외 데이터(`data/private/`, `data/raw/`)를 읽지 않는다 — 고정 픽스처 사용
 - 이유: 개발 DB와 같은 PostgreSQL 17이라 JSONB·배열 동작이 같고, Testcontainers 의존성을 늘리지 않는다
