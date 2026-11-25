@@ -9,11 +9,14 @@
 실행 (build_baseline.py를 먼저 실행, .env에 키와 모델):
     python scripts/normalize_camps.py --dry-run                     # 프롬프트와 입력 크기만 확인, 호출 없음
     python scripts/normalize_camps.py --contains 키워드 --model M    # 캠프명에 단어가 든 캠프만 (시험)
-    python scripts/normalize_camps.py --batch-size 25               # 남은 캠프 전체
-    python scripts/normalize_camps.py --report-only                 # 호출 없이 초안·diff만 다시 만들기
+    python scripts/normalize_camps.py --batch-size 15 --max-output 3000   # 남은 캠프 전체
+    python scripts/normalize_camps.py --report-only                 # 호출 없이 초안·diff·검수 목록만 다시 만들기
+    python scripts/normalize_camps.py --apply-review                # 검수 목록의 accept/reject를 승인 기록으로 옮기고 다시 만들기
     python scripts/normalize_camps.py --v1-retro                    # v1 결과에 새 병합 규칙을 적용한 집계 (호출 없음)
 출력 (모두 git 제외): data/derived/camp_llm.jsonl, llm_calls.jsonl, camp_profile_draft.csv, camp_diff.csv,
+                     data/private/review/v2_diff_review.csv (검수 목록), data/private/camp_approvals.csv (승인 기록),
                      data/private/industry_removal_review.csv (산업 제거 제안을 모은 검수 목록)
+명세: docs/specs/12_BATCH_SPEC.md BAT-003
 """
 import argparse
 import csv
@@ -30,11 +33,13 @@ sys.path.insert(0, str(ROOT))
 
 from app.config import load_env, resolve_model  # noqa: E402
 from app.core import normalize as v1  # noqa: E402
-from app.core.normalize_v2 import (NORMALIZER_VERSION, PLACEHOLDER_ORIGINS, CampInput, Manual, Vocab,  # noqa: E402
-                                   build_schema, build_system_prompt, build_user_prompt, content_hash, merge,
-                                   v1_item_to_v2, validate_item)
+from app.core.normalize_v2 import (NORMALIZER_VERSION, PLACEHOLDER_ORIGINS, REVIEW_DECISIONS,  # noqa: E402
+                                   Approval, CampInput, Manual, Vocab, apply_approval, build_schema,
+                                   build_system_prompt, build_user_prompt, content_hash, dropped_proposals, merge,
+                                   result_hash, review_types, v1_item_to_v2, validate_item)
 from app.llm.groq import GroqClient  # noqa: E402
 from app.llm.openrouter import OpenRouterClient  # noqa: E402
+from app.sources.prompts import load_prompt  # noqa: E402
 from app.sources.vocab import load_industries, load_job_families, load_skills  # noqa: E402
 
 DERIVED = ROOT / 'data' / 'derived'
@@ -44,6 +49,10 @@ DETAIL_MAP = PRIVATE / 'detail_map.csv'
 OVERRIDES = PRIVATE / 'camp_overrides.csv'
 MANUAL = PRIVATE / 'camp_manual.csv'
 REMOVAL_REVIEW = PRIVATE / 'industry_removal_review.csv'
+APPROVALS = PRIVATE / 'camp_approvals.csv'
+REVIEW = PRIVATE / 'review' / 'v2_diff_review.csv'
+REVIEW_CELLS = ('decision', 'fix_job_ids', 'fix_industry_ids', 'fix_sub_job', '검수 메모')
+APPROVAL_FIELDS = ('source_camp_id', 'result_hash', 'decision', 'reviewed_at', '메모')
 LLM_JSONL = DERIVED / 'camp_llm.jsonl'
 CALLS_JSONL = DERIVED / 'llm_calls.jsonl'
 DRAFT = DERIVED / 'camp_profile_draft.csv'
@@ -76,6 +85,11 @@ def append_jsonl(path, record):
 
 def split(value):
     return tuple(v for v in value.split(SEP) if v)
+
+
+def load_system_prompt(vocab: Vocab) -> str:
+    """prompts/normalize_v2.md 본문에 어휘를 끼워 넣은 시스템 프롬프트."""
+    return build_system_prompt(vocab, load_prompt('normalize_v2'))
 
 
 def load_vocab() -> Vocab:
@@ -199,7 +213,8 @@ def profile_row(camp: CampInput, profile, errors=()):
 
 
 def write_csv(path, rows):
-    if not rows:
+    if not rows:   # 빈 결과도 덮어쓴다 (예전 행이 남아 있으면 검수할 것이 남은 것처럼 보인다)
+        path.write_text('', encoding='utf-8')
         return
     with path.open('w', encoding='utf-8', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=list(rows[0]))
@@ -207,19 +222,91 @@ def write_csv(path, rows):
         writer.writerows(rows)
 
 
+def load_approvals() -> dict[str, Approval]:
+    if not APPROVALS.exists():
+        return {}
+    return {r['source_camp_id']: Approval(r['result_hash'], r['decision']) for r in read_csv(APPROVALS)}
+
+
 def build_reports(camps, system, vocab, manual, model):
     latest = latest_records(model, system, camps)
-    rows = []
+    approvals = load_approvals()
+    rows, review = [], []
     for camp in camps:
         record = latest.get(camp.id)
         llm, errors = (validate_item(record['item'], vocab) if record else (None, []))
         if record is None and camp.id not in manual:
             continue
-        rows.append(profile_row(camp, merge(camp, llm, manual.get(camp.id)), errors))
+        merged = merge(camp, llm, manual.get(camp.id))
+        rhash = result_hash(merged)   # 판정은 승인 전 병합 결과에 묶는다
+        profile = apply_approval(camp, merged, approvals.get(camp.id))
+        rows.append({**profile_row(camp, profile, errors), 'result_hash': rhash})
+        types = review_types(camp, merged)
+        if merged.status == 'pending_review' or '메모 미반영' in types:
+            review.append(review_row(camp, merged, profile, types, dropped_proposals(camp, llm), rhash))
     write_csv(DRAFT, rows)
     write_csv(DIFF, [r for r in rows if r['status'] == 'pending_review'])
+    write_review(review)
     update_removal_review(rows, f'v2 LLM ({model})')
     return rows
+
+
+def review_row(camp, merged, profile, types, dropped, rhash):
+    grounding_failed = '근거 검증 실패로 버림' in types
+    return {'source_camp_id': camp.id, '캠프명': camp.name, '유형': ' + '.join(types), 'status': profile.status,
+            '기준 직무': SEP.join(camp.jobs), '결과 직무': SEP.join(merged.job_ids),
+            '기준 산업': SEP.join(camp.industries), '결과 산업': SEP.join(merged.industry_ids),
+            '기준 sub_job': SEP.join(camp.sub_jobs), '결과 sub_job': merged.sub_job, 'camp_type': merged.camp_type,
+            '버려진 제안': ', '.join(dropped) if grounding_failed else '',
+            '실질 변화 없음': 'Y' if grounding_failed and not dropped else '',
+            'LLM 근거': ' / '.join(merged.evidence), '오버라이드 메모': camp.memo, 'result_hash': rhash,
+            **{k: '' for k in REVIEW_CELLS}}
+
+
+def write_review(rows):
+    """검수 목록을 다시 쓴다. 같은 캠프·같은 결과 해시의 검수 칸은 보존한다 (결과가 바뀐 캠프는 새로 검수)."""
+    old = {(r['source_camp_id'], r.get('result_hash')): r for r in read_csv_sig(REVIEW)} if REVIEW.exists() else {}
+    for r in rows:
+        prev = old.get((r['source_camp_id'], r['result_hash']))
+        if prev:
+            r.update({k: prev.get(k, '') for k in REVIEW_CELLS})
+    REVIEW.parent.mkdir(parents=True, exist_ok=True)
+    if rows:
+        with REVIEW.open('w', encoding='utf-8-sig', newline='') as f:   # 엑셀에서 바로 열리게 BOM
+            writer = csv.DictWriter(f, fieldnames=list(rows[0]))
+            writer.writeheader()
+            writer.writerows(rows)
+
+
+def read_csv_sig(path):
+    with path.open(encoding='utf-8-sig', newline='') as f:
+        return list(csv.DictReader(f))
+
+
+def apply_review() -> int:
+    """검수 목록의 accept/reject를 승인 기록으로 옮긴다. fix·rerun은 옮기지 않는다 (보정·재실행 뒤 새 결과로 다시 검수)."""
+    if not REVIEW.exists():
+        print(f'{REVIEW.relative_to(ROOT)}가 없습니다. --report-only로 먼저 만드세요', file=sys.stderr)
+        return 0
+    records = {r['source_camp_id']: r for r in read_csv(APPROVALS)} if APPROVALS.exists() else {}
+    today = date.today().isoformat()
+    moved = 0
+    for r in read_csv_sig(REVIEW):
+        decision = r['decision'].strip().lower()
+        if decision not in REVIEW_DECISIONS:
+            continue
+        old = records.get(r['source_camp_id'])
+        if old and old['result_hash'] == r['result_hash'] and old['decision'] == decision:
+            continue
+        records[r['source_camp_id']] = {'source_camp_id': r['source_camp_id'], 'result_hash': r['result_hash'],
+                                        'decision': decision, 'reviewed_at': today, '메모': r['검수 메모']}
+        moved += 1
+    with APPROVALS.open('w', encoding='utf-8', newline='') as f:
+        writer = csv.DictWriter(f, fieldnames=list(APPROVAL_FIELDS))
+        writer.writeheader()
+        writer.writerows(records.values())
+    print(f'승인 기록 {moved}건 반영 → {APPROVALS.relative_to(ROOT)} (전체 {len(records)}건)')
+    return moved
 
 
 def update_removal_review(rows, source):
@@ -282,13 +369,14 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument('--dry-run', action='store_true')
     parser.add_argument('--report-only', action='store_true')
+    parser.add_argument('--apply-review', action='store_true', help='검수 목록의 accept/reject를 승인 기록으로 옮기고 보고서를 다시 만든다 (호출 없음)')
     parser.add_argument('--v1-retro', action='store_true')
     parser.add_argument('--provider', choices=list(PROVIDERS), default='groq')
     parser.add_argument('--model', default=None, help='모델 (없으면 .env의 GROQ_MODEL/OPENROUTER_MODEL, 그것도 없으면 기본값)')
     parser.add_argument('--contains', action='append', default=[], help='캠프명에 이 단어가 든 캠프만 (여러 번 지정 가능)')
     parser.add_argument('--ids', default='', help='쉼표로 구분한 source_camp_id만 (시험용)')
-    parser.add_argument('--batch-size', type=int, default=25)
-    parser.add_argument('--max-output', type=int, default=2500)
+    parser.add_argument('--batch-size', type=int, default=15)
+    parser.add_argument('--max-output', type=int, default=3000)
     parser.add_argument('--max-tokens-today', type=int, default=190_000, help='groq 모델별 하루 토큰 예산 (무료 한도 200K)')
     parser.add_argument('--max-requests-today', type=int, default=45, help='openrouter 하루 요청 예산 (무료 한도 50회)')
     parser.add_argument('--tpm', type=int, default=8_000)
@@ -299,7 +387,7 @@ def main() -> int:
     vocab = load_vocab()
     manual = load_manual()
     camps, families = load_camps(manual)
-    system = build_system_prompt(vocab)
+    system = load_system_prompt(vocab)
     schema = build_schema(vocab)
 
     if args.v1_retro:
@@ -329,7 +417,9 @@ def main() -> int:
         print('\n===== 시스템 프롬프트 =====\n' + system + '\n\n===== 사용자 입력 (앞 3줄) =====\n' + '\n'.join(user.splitlines()[:3]))
         return 0
 
-    if not args.report_only and todo:
+    if args.apply_review:
+        apply_review()
+    if not (args.report_only or args.apply_review) and todo:
         key_name, client_class = PROVIDERS[args.provider]
         key = os.environ.get(key_name)
         if not key:
@@ -343,7 +433,7 @@ def main() -> int:
     rows = build_reports(camps, system, vocab, manual, model)
     status = Counter(r['status'] for r in rows)
     print(f'\n초안 {len(rows)}개 캠프 ({model}): ' + ', '.join(f'{k} {v}개' for k, v in status.items()))
-    print(f'→ {DRAFT.relative_to(ROOT)}, {DIFF.relative_to(ROOT)}')
+    print(f'→ {DRAFT.relative_to(ROOT)}, {DIFF.relative_to(ROOT)}, 검수 목록 {REVIEW.relative_to(ROOT)}')
     return 0
 
 

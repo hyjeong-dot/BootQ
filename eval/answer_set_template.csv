@@ -1,1 +1,1 @@
-eval_id,title,content,target_job,target_company,category,category_group,expected_jobs,expected_industries,no_recommendation,allowed_camp_ids,notes
+eval_id,title,content,target_job,target_company,category,category_group,expected_jobs,optional_jobs,expected_industries,no_recommendation,allowed_camp_ids,required_groups,ideal_camp_ids,disallowed_camp_ids,confidence,rationale,notes
