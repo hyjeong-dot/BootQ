@@ -12,6 +12,24 @@ jobs:
   test:
     name: pytest
     runs-on: ubuntu-latest
+    # DB 테스트용 Postgres 17 (docs/rules/07_TEST.md). 로컬 Compose의 bootq_test와 같은 이름·계정
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: bootq
+          POSTGRES_PASSWORD: bootq
+          POSTGRES_DB: bootq_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U bootq -d bootq_test"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 15
+    env:
+      TEST_DATABASE_URL: postgresql://bootq:bootq@127.0.0.1:5432/bootq_test
+      BOOTQ_REQUIRE_DB: "1"    # DB에 못 붙으면 DB 테스트를 건너뛰지 않고 실패
     steps:
       - uses: actions/checkout@v7
 
@@ -24,4 +42,4 @@ jobs:
         run: uv sync --locked
 
       - name: Run tests
-        run: uv run pytest -q
+        run: uv run pytest -q -rs

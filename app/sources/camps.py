@@ -1,0 +1,87 @@
+"""정규화 산출물 파일 → 매칭용 캠프 목록. 변환 규칙은 core에 있고(②: core.models.camp_for_matching,
+①: core.evaluation.camp_for_rule_baseline), 여기서는 파일만 읽는다. 변형 정의: docs/EVAL.md "캠프 프로파일 변형"."""
+import csv
+from pathlib import Path
+
+from app.core.camp_select import SelectCamp
+from app.core.evaluation import camp_for_rule_baseline
+from app.core.models import Camp, camp_for_matching
+
+ROOT = Path(__file__).resolve().parents[2]
+PROFILE = ROOT / 'data' / 'derived' / 'camp_profile_draft.csv'
+CAMP_RAW = ROOT / 'data' / 'derived' / 'camp_raw.csv'
+MANUAL = ROOT / 'data' / 'private' / 'camp_manual.csv'
+SEP = '|'
+
+RULE, LLM = 'rule', 'llm'      # 3갈래 ① 규칙+수동 / ② 규칙+수동+LLM
+VARIANTS = (RULE, LLM)
+
+
+def _split(value: str) -> tuple[str, ...]:
+    return tuple(v.strip() for v in (value or '').split(SEP) if v.strip())
+
+
+def _read(path: Path) -> list[dict[str, str]]:
+    with path.open(encoding='utf-8', newline='') as f:
+        return list(csv.DictReader(f))
+
+
+def load_manual_not_camp(path: Path = MANUAL) -> set[str]:
+    """수동 보정에서 캠프 아님으로 확정한 ID. 파일이 없으면 빈 집합."""
+    if not path.exists():
+        return set()
+    return {r['source_camp_id'] for r in _read(path) if r.get('is_camp', '').strip().lower() == 'false'}
+
+
+def load_matching_camps(variant: str, path: Path = PROFILE, manual_path: Path = MANUAL) -> list[Camp]:
+    """정규화 산출물(camp_profile_draft.csv) → 변형별 매칭용 캠프. 후보가 아닌 캠프는 뺀다."""
+    if variant not in VARIANTS:
+        raise ValueError(f'variant는 {VARIANTS} 중 하나: {variant!r}')
+    not_camp = load_manual_not_camp(manual_path) if variant == RULE else set()
+    camps = []
+    for r in _read(path):
+        if variant == RULE:
+            camp = camp_for_rule_baseline(
+                id=r['source_camp_id'], name=r['캠프명'], base_job_ids=_split(r['base_job_ids']),
+                base_industry_ids=_split(r['base_industry_ids']), manual_not_camp=r['source_camp_id'] in not_camp)
+        else:
+            camp = camp_for_matching(
+                id=r['source_camp_id'], name=r['캠프명'], status=r['status'],
+                is_camp=r['is_camp'].strip().lower() == 'true',
+                job_ids=_split(r['job_ids']), industry_ids=_split(r['industry_ids']),
+                base_job_ids=_split(r['base_job_ids']), base_industry_ids=_split(r['base_industry_ids']),
+                camp_type=r['camp_type'] or None)
+        if camp is not None:
+            camps.append(camp)
+    return camps
+
+
+def load_camp_names(path: Path = PROFILE) -> dict[str, str]:
+    """캠프 ID → 캠프명 (결과 파일·블라인드 풀링용, 캠프 아님 포함)."""
+    return {r['source_camp_id']: r['캠프명'] for r in _read(path)}
+
+
+def load_select_camps(raw_path: Path = CAMP_RAW, profile_path: Path = PROFILE,
+                      manual_path: Path = MANUAL) -> list[SelectCamp]:
+    """③ LLM 캠프 선택용 캠프 목록: ①과 같은 캠프 풀에 원본 칸(원래 코드·캠프명)만 붙인다 (docs/EVAL.md)."""
+    pool = {c.id for c in load_matching_camps(RULE, profile_path, manual_path)}
+    return [SelectCamp(r['source_camp_id'], r['직무대분류'], r['직무중분류'], r['상세분류'], r['산업'], r['캠프명'])
+            for r in _read(raw_path) if r['source_camp_id'] in pool]
+
+
+# ---------- DB 적재용 (BAT-006, #14) ----------
+def load_raw_camp_rows(path: Path = CAMP_RAW) -> dict[tuple[str, str], list[dict[str, str]]]:
+    """camp_raw.csv → {(source, source_camp_id): 원본 행들}. 같은 캠프가 직무코드만 다른 여러 행이면 모두 모은다 (파일 순서)."""
+    camps: dict[tuple[str, str], list[dict[str, str]]] = {}
+    for r in _read(path):
+        camps.setdefault((r['source'], r['source_camp_id']), []).append(r)
+    return camps
+
+
+def load_profile_rows(path: Path = PROFILE) -> list[dict[str, str]]:
+    """정규화 산출물(camp_profile_draft.csv)의 행 그대로. 배열 칸은 '|'로 나뉜 문자열이다 (split_values로 나눈다)."""
+    return _read(path)
+
+
+def split_values(value: str) -> tuple[str, ...]:
+    return _split(value)

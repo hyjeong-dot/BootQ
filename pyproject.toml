@@ -4,14 +4,24 @@ version = "0.1.0"
 description = "자연어 질의 의도 분석 기반 맞춤형 부트캠프 매칭 에이전트"
 readme = "README.md"
 requires-python = ">=3.13,<3.14"
-# 런타임 의존성은 실제로 쓰는 작업에서 추가한다 (FastAPI·psycopg 등은 #13·#14).
-# 현재 코드는 표준 라이브러리만 사용한다.
-dependencies = []
+# 런타임 의존성은 실제로 쓰는 작업에서 추가한다. core·llm·평가 스크립트는 표준 라이브러리만 쓴다.
+# psycopg[binary]: libpq를 휠에 포함 (macOS·python:3.13-slim에 libpq를 따로 설치하지 않게).
+dependencies = [
+    "fastapi>=0.165.0",
+    "psycopg-pool>=3.3.3",
+    "psycopg[binary]>=3.3.9",
+    "uvicorn>=0.54.0",
+]
 
 [dependency-groups]
 dev = [
+    "anyio>=4.16.0",
+    "httpx2>=2.16.2",
     "pytest>=9.2",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "db: PostgreSQL(TEST_DATABASE_URL)이 필요한 테스트. 연결할 수 없으면 건너뜀, BOOTQ_REQUIRE_DB=1이면 실패",
+]

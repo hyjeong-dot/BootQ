@@ -21,6 +21,11 @@
 - 결정: Docker Compose (Postgres + API). API 포트는 `127.0.0.1`에만 게시
 - 이유: DB까지 명령 하나로 띄워 면접관·리뷰어도 재현 가능
 - 결정일: 2026-11-24
+- 구성 (2026-11-26, #13 — `compose.yaml`):
+  - `db`: `postgres:17`, 볼륨 `pgdata`, `127.0.0.1:${POSTGRES_PORT:-5432}:5432`. 처음 볼륨을 만들 때 `db/init/`이 테스트 DB `bootq_test`를 만든다. healthcheck(`pg_isready`)
+  - `api`: `Dockerfile`(`python:3.13-slim` + uv 0.13.9, `uv sync --locked --no-dev`), `127.0.0.1:${API_PORT:-8000}:8000`. db가 healthy가 된 뒤 시작하고, 시작할 때 `scripts/migrate.py`로 마이그레이션을 적용한 다음 uvicorn을 띄운다 (컨테이너 안은 0.0.0.0 바인딩)
+  - DB 계정·비밀번호는 `.env`(`POSTGRES_USER`·`POSTGRES_PASSWORD`·`POSTGRES_DB`)에서. 로컬 전용이라 `.env.example`의 기본값(`bootq`)을 그대로 써도 된다 — 포트가 127.0.0.1에만 열리므로
+  - 이미지에는 `data/private`·`data/derived`·`data/raw`·`.env`를 넣지 않는다 (`.dockerignore`). DB 적재(BAT-006)는 호스트에서 스크립트로 한다
 
 ## 2. 환경 분리
 
