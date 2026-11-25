@@ -1,0 +1,151 @@
+/* 캠프 추천 토스트 스타일 (SCR-001).
+   인턴십 프로젝트의 팝업 목업 CSS를 재사용하고, 맨 아래 "데모 페이지 추가분"만 새로 썼다 */
+:root {
+  --text: #1f2430;
+  --text-sub: #3b4352;
+  --muted: #5b6472;
+  --border: #d9dce1;
+  --border-strong: #c4c9d2;
+  --line: #e6e8ec;
+  --page: #f4f5f7;
+  --surface: #ffffff;
+  --accent: #2457d6;
+  --accent-hover: #1b46b3;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', system-ui, sans-serif;
+  color: var(--text);
+  background: var(--page);
+}
+
+button { font-family: inherit; cursor: pointer; }
+
+/* ---- 카드 ---- */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding: 16px 18px 18px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(20, 26, 40, 0.18);
+}
+
+.card-head { display: flex; align-items: center; gap: 4px; }
+.card-label { flex-grow: 1; font-size: 13px; font-weight: 500; color: var(--muted); }
+.pager { min-width: 32px; text-align: center; font-size: 13px; color: var(--text-sub); }
+
+.icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+}
+.icon-btn:hover { background: #eef0f4; }
+.icon-btn svg { width: 16px; height: 16px; stroke: var(--text-sub); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.icon-btn.close { margin-left: 4px; }
+
+.notice {
+  padding: 10px 12px;
+  border: 1px dashed #98a1b0;
+  border-radius: 10px;
+  background: var(--page);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-sub);
+}
+
+.camp-name { font-size: 16px; line-height: 1.45; font-weight: 700; }
+.camp-reason { font-size: 14px; line-height: 1.55; color: var(--text-sub); }
+
+.meta-row { display: flex; flex-wrap: wrap; align-items: center; column-gap: 8px; row-gap: 4px; font-size: 13px; color: var(--muted); }
+.meta-row .period { margin-left: auto; color: var(--text); font-weight: 500; }
+
+.rating-row { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-sub); }
+.rating-row svg { width: 14px; height: 14px; fill: var(--text-sub); stroke: var(--text-sub); stroke-width: 1.5; stroke-linejoin: round; }
+.rating-row .score { font-weight: 700; }
+.rating-row .count { color: var(--muted); }
+.no-review { font-size: 13px; color: var(--muted); }
+
+.actions { display: flex; gap: 8px; padding-top: 2px; }
+.btn { flex: 1; height: 44px; border-radius: 10px; font-size: 14px; }
+.btn-line { border: 1px solid #98a1b0; background: var(--surface); color: var(--text); font-weight: 500; }
+.btn-line:hover { background: #eef0f4; }
+.btn-main { border: none; background: var(--accent); color: #ffffff; font-weight: 700; }
+.btn-main:hover { background: var(--accent-hover); }
+
+.feedback { display: flex; align-items: center; gap: 8px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
+.feedback .ask { flex-grow: 1; }
+
+/* ==== 데모 페이지 추가분 ==== */
+
+[hidden] { display: none !important; }
+
+/* 우측 하단 토스트: 아래에서 올라오고, X를 누르면 내려간다 (목업 데스크톱 화면에 있던 규칙) */
+.toast {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 10;
+  width: 380px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  transform: translateY(0);
+  opacity: 1;
+  transition: transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.3s ease;
+}
+.toast.is-closed { transform: translateY(36px); opacity: 0; pointer-events: none; }
+.handle { display: none; }
+
+/* 모집기간 데이터가 없을 때의 자리 문구 */
+.meta-row .period.is-empty { color: var(--muted); font-weight: 400; }
+
+/* 목업 자리만 유지한 버튼 (캠프 URL 없음) */
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-line:disabled:hover { background: var(--surface); }
+.btn-main:disabled:hover { background: var(--accent); }
+
+/* 👎 사유 선택 */
+.feedback.choosing { flex-direction: column; align-items: stretch; }
+.reasons { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  min-height: 32px;
+  padding: 4px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+}
+.chip:hover { background: #eef0f4; }
+.chip-ghost { border-color: transparent; color: var(--muted); }
+
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* 좁은 화면: 하단 시트 (목업 모바일 화면을 따르되 배경 어둡게 덮기는 뺌. 03_FRONTEND.md 3장) */
+@media (max-width: 640px) {
+  .toast { left: 0; right: 0; bottom: 0; width: auto; max-height: 85vh; }
+  .toast .card {
+    padding: 10px 20px calc(24px + env(safe-area-inset-bottom));
+    border: none;
+    border-radius: 20px 20px 0 0;
+    box-shadow: 0 -8px 28px rgba(20, 26, 40, 0.16);
+  }
+  .handle { display: block; align-self: center; width: 40px; height: 4px; border-radius: 2px; background: var(--border-strong); }
+  /* 터치 대상 44px */
+  .toast .icon-btn { width: 44px; height: 44px; border-radius: 10px; }
+  .toast .icon-btn svg { width: 18px; height: 18px; }
+  .toast .camp-name { font-size: 17px; }
+  .toast .btn { height: 48px; border-radius: 12px; font-size: 15px; }
+  .toast .chip { min-height: 40px; }
+}

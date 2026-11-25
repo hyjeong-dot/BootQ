@@ -5,8 +5,10 @@ import logging
 import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from psycopg_pool import AsyncConnectionPool
 
 from app.config import database_url, load_env, resolve_model
@@ -19,6 +21,9 @@ from app.services.vocab import VocabStore
 from app.sources.prompts import load_prompt
 
 log = logging.getLogger(__name__)
+
+# 데모 페이지 SCR-001 (03_FRONTEND.md 1장). index.html·popup.css·dist/(tsc 출력)를 같은 출처에서 서빙
+FRONTEND_DIR = Path(__file__).resolve().parent.parent / 'frontend'
 
 _STANDARD = set(logging.LogRecord('', 0, '', 0, '', None, None).__dict__) | {'message', 'asctime'}
 
@@ -48,8 +53,10 @@ def default_llm() -> LLMClient:
 
 
 def create_app(*, db_url: str | None = None, llm: LLMClient | None = None,
-               sse: tuple[float, float, float] | None = None) -> FastAPI:
-    """sse = (폴링 간격, 타임아웃, ping 간격) 초. 테스트에서 짧게 줄인다."""
+               sse: tuple[float, float, float] | None = None,
+               frontend_dir: Path | None = FRONTEND_DIR) -> FastAPI:
+    """sse = (폴링 간격, 타임아웃, ping 간격) 초. 테스트에서 짧게 줄인다.
+    frontend_dir가 없으면(None 또는 폴더 없음) 데모 페이지 없이 API만 뜬다."""
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         load_env()
@@ -73,6 +80,9 @@ def create_app(*, db_url: str | None = None, llm: LLMClient | None = None,
     install_handlers(app)
     for r in (posts.router, recommendations.router, admin.router):
         app.include_router(r)
+    # `/`에 마운트하므로 API·/docs 라우트보다 뒤에 둔다 (앞의 라우트가 먼저 매칭된다)
+    if frontend_dir is not None and frontend_dir.is_dir():
+        app.mount('/', StaticFiles(directory=frontend_dir, html=True), name='frontend')
     return app
 
 
