@@ -5,7 +5,7 @@
 사전식 정렬 (가중합 아님. 앞 단계가 같을 때만 뒤 단계가 순서를 정한다)
   0. 모집 중 (check_recruiting=False면 끈다)
   1. 직무 등급 A(SAME·CLOSE) / B(FAMILY) / 제외. B는 A가 3개 미만일 때만, 리뷰 플래그
-  2. 산업 등급: 일치 > 계열 > ANY > 불일치 (유저 산업이 없으면 건너뜀)
+  2. 산업 등급: 일치 > 계열 > ANY > 불일치. 유저 산업이 없으면 ANY > 산업 전용
   3. 직무 SAME > CLOSE
   4. desired_help ↔ camp_type: 일치 > 캠프 camp_type 없음 > 불일치
      유저 직무가 있고 desired_help 출처가 본문일 때만 (산업만 매칭·category 기본값·선호 없음이면 건너뜀)
@@ -108,7 +108,18 @@ def _industry_source(camp: Camp, industries: tuple[Candidate, ...], grade: Indus
     return None, None
 
 
-def _job_fit(camp: Camp, order: int, job: Candidate, ind: IndustryGrade | None, hlp: HelpGrade | None,
+def _user_industry_grade(camp: Camp, merged: MergedSlots, families: FamilyIndex) -> tuple[IndustryGrade | None, int]:
+    """(사유·기록용 산업 등급, 정렬 키). 유저 산업이 없으면 ANY 캠프 > 산업 전용 캠프 (02_BACKEND.md 5장
+    "유저 산업이 없을 때의 산업 단계"). 이때 산업 전용 캠프는 등급 없음(맞춘 근거가 없어 사유 문장도 없다)."""
+    if merged.industries:
+        grade = industry_grade((c.value for c in merged.industries), camp.industry_ids, families)
+        return grade, _num(grade)
+    if ANY in camp.industry_ids:
+        return IndustryGrade.ANY, 0
+    return None, 1
+
+
+def _job_fit(camp: Camp, order: int, job: Candidate, ind_key: int, hlp: HelpGrade | None,
              relations: RelationIndex) -> _JobFit | None:
     best: _JobFit | None = None
     for camp_job in camp.job_ids:
@@ -116,17 +127,17 @@ def _job_fit(camp: Camp, order: int, job: Candidate, ind: IndustryGrade | None, 
         if rel is None:
             continue
         grade = GRADE_B if rel == FAMILY else GRADE_A
-        fit = _JobFit((grade, _num(ind), _RELATION_RANK[rel], _num(hlp), order), job, camp_job, rel)
+        fit = _JobFit((grade, ind_key, _RELATION_RANK[rel], _num(hlp), order), job, camp_job, rel)
         if best is None or fit.key < best.key:
             best = fit
     return best
 
 
 def _score(camp: Camp, merged: MergedSlots, relations: RelationIndex, families: FamilyIndex) -> _Scored:
-    ind = industry_grade((c.value for c in merged.industries), camp.industry_ids, families)
+    ind, ind_key = _user_industry_grade(camp, merged, families)
     ind_cand, camp_ind = _industry_source(camp, merged.industries, ind, families)
     hlp = help_grade(preferred_camp_type(merged), camp.camp_type)
-    fits = tuple(_job_fit(camp, i, job, ind, hlp, relations) for i, job in enumerate(merged.jobs))
+    fits = tuple(_job_fit(camp, i, job, ind_key, hlp, relations) for i, job in enumerate(merged.jobs))
     present = [f for f in fits if f is not None]
     best = min(present, key=lambda f: f.key) if present else None
     return _Scored(camp, ind, ind_cand, camp_ind, hlp, fits, best)

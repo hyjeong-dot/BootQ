@@ -105,6 +105,16 @@ def test_industry_skipped_without_user_industry():
     assert result.recommendations[0].industry_grade is None
 
 
+def test_any_before_industry_specific_without_user_industry():
+    # 유저가 업종을 말하지 않으면 업종 전용 캠프는 근거가 없다 (#36). 직무 등급은 넘지 못한다
+    merged = MergedSlots(jobs=(job('SW개발'),))
+    camps = [camp('a_specific', ['SW개발'], ['제조']), camp('z_any', ['SW개발'], [ANY]),
+             camp('close_any', ['웹개발'], [ANY]), camp('b_family_any', ['데이터분석'], [ANY])]
+    result = run(merged, camps)
+    assert ids(result) == ['z_any', 'close_any', 'a_specific']   # A등급이 3개라 ANY여도 FAMILY는 빠진다
+    assert [r.industry_grade for r in result.recommendations] == [IndustryGrade.ANY, IndustryGrade.ANY, None]
+
+
 # ---------- 0단계: 모집 중 ----------
 def test_closed_camp_excluded_unless_check_recruiting_off():
     merged = MergedSlots(jobs=(job('SW개발'),))
