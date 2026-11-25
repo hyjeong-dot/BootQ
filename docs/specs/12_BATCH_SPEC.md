@@ -35,9 +35,9 @@
 | BAT-003 | LLM 정규화 (D단계, v2) | 수동 | 기준선 + LLM 추가분 + 수동 보정 + 검수 승인 → camp_profile, 검수 목록 (`scripts/normalize_camps.py`, 상세 2장) | ✅ |
 | BAT-004 | 매핑표 검사 | 수동 | 직무·산업·상세분류 매핑표 누락·잉여 검사 (`scripts/check_*_map.py`) | ✅ |
 | BAT-005 | 평가 | 수동 | 정답 셋 기준 슬롯·매칭 지표 계산, 3갈래 비교 (`scripts/evaluate.py`, 상세 2장) | ✅ |
-| BAT-006 | DB 적재 | 수동 | 어휘·관계·camp_raw·camp_profile 파일 → PostgreSQL | 📝 |
+| BAT-006 | DB 적재 | 수동 | 어휘·관계·camp_raw·camp_profile 파일 → PostgreSQL (`scripts/load_db.py`, 상세 2장) | ✅ |
 
-> 현재 BAT-001~003은 파일(`data/derived/`)로 출력한다. DB 도입 후 출력 대상을 DB로 바꿀지(BAT-006과 합칠지)는 04_DATABASE.md 결정 후 정한다.
+> BAT-001~003은 파일(`data/derived/`)로 출력하고, BAT-006이 그 파일을 DB에 옮긴다 (2026-11-26, #14). 정규화 스크립트가 DB에 직접 쓰지 않는 이유: 평가(BAT-005)가 DB 없이 같은 파일을 읽고, 검수가 파일(diff·검수 목록) 단위로 돌기 때문이다. 파일이 원본, DB는 서비스용 적재본.
 
 ## 2. 배치 상세 명세
 
@@ -169,3 +169,42 @@
 - ③ 추천 만들기: `uv run python scripts/run_camp_select.py --model openai/gpt-oss-120b` (OpenRouter 유료. 먼저 `--ids E01`로 토큰 확인) → `uv run python scripts/evaluate.py --recs data/derived/camp_select.jsonl --name select_llm`
 - 결과 폴더는 캠프명이 들어가므로 git 제외. 커밋하는 수치는 캠프명 없이 `EVAL_RESULTS.md`에 적는다
 - `summary.json`의 `llm_calls`: 슬롯필링(또는 ③) 호출의 평균 토큰·시간과 시간 중앙값
+
+---
+
+### BAT-006. DB 적재
+
+- **목적**: 어휘·관계 파일과 정규화 산출물을 서비스가 읽는 DB 테이블로 옮긴다. 파일이 원본이고 DB는 적재본이다
+- **실행 주기**: 수동 (어휘·정규화 결과가 바뀐 뒤). 실행 후 서버가 떠 있으면 API-004로 어휘 재로드
+- **실행 시간대 기준**: 해당 없음
+- **상태**: ✅ 구현 (#14)
+
+#### 처리 내용
+
+1. 파일을 읽는다 (`sources/`). `data/private/`의 입력 필드 사전이 없으면(CI·리뷰어 환경) 그 두 테이블은 비우고 경고
+2. **어휘**: 8개 테이블을 비우고 다시 넣는다. jobs.csv의 `임시` 직무는 `vocab_job.temporary=true`로 넣는다(캠프가 자리표시 직무로 쓰고 있어 빼면 안 되고, 슬롯필링 선택지에서는 뺀다). 직무·산업은 파일 순서를 `position`에 남긴다 (슬롯필링 프롬프트가 평가와 같아야 해서). 기존 `sources/vocab.py` 함수가 읽는 것과 같은 행만 넣는다 (예: industry_family는 `확정`만)
+3. **camp_raw**: 출처 `csv`의 행을 `(source, source_camp_id)`로 upsert. payload = 원본 행 전체의 **배열**(같은 캠프가 직무코드만 다른 여러 행이면 모두), content_hash = ID 칸을 뺀 원본 행들(캠프명+원래 코드)의 해시. 바뀐 행만 `updated_at` 갱신. 파일에 없는 `csv` 캠프는 `active=false` (삭제하지 않음: 추천 기록·피드백이 가리키고 있음)
+4. **camp_profile**: 정규화 산출물(`camp_profile_draft.csv`)의 행을 upsert. `content_hash`는 그 시점 camp_raw의 content_hash. camp_raw에 없는 캠프 행은 건너뛰고 경고
+5. 검사: 캠프의 직무·산업 값이 어휘에 있는지 (배열이라 FK가 없음). 없으면 그 캠프를 건너뛰고 경고 (정규화 단계의 어휘 검사가 이미 막으므로 정상이면 0건)
+6. 콘솔 요약: 테이블별 넣은 행 수, 비활성화·건너뜀·경고 수
+
+#### 대상 데이터
+
+| 입력 | 출력 | 예상 건수 |
+|---|---|---|
+| `data/vocab/*.csv`, `data/private/job_alias.csv`·`company_industry.csv`, `data/derived/camp_raw.csv`, `data/derived/camp_profile_draft.csv` | 어휘 8개 테이블, `camp_raw`, `camp_profile` | 어휘 수백 행, 캠프 수백 개 |
+
+#### 실패 / 예외 처리
+
+- **재시도**: 없음 (로컬 파일 → 로컬 DB)
+- **부분 실패 시**: **전체를 한 트랜잭션으로** — 실패하면 아무것도 바뀌지 않는다. 파일을 그대로 옮기는 작업이라 반쯤 들어간 상태(어휘는 새것, 캠프는 옛것)가 더 위험하다. (정규화의 "캠프 단위 커밋"은 LLM 호출이 있는 BAT-003 규칙)
+- **중복 실행 방지**: upsert라 다시 돌려도 같은 결과
+- **알림**: 없음 (콘솔 요약)
+
+#### 실행 이력 기록
+- 없음 (콘솔 요약). 적재본의 출처 버전은 camp_profile의 `normalizer_version`·`result_hash`로 남는다
+
+#### 비고
+- 실행: `uv run python scripts/load_db.py` (기본 `DATABASE_URL`), `--test`면 테스트 DB
+- 확인(2026-11-26): 적재 후 DB에서 읽은 어휘가 파일 어휘와 같고, 정답 셋 23문항 × (정답 슬롯·시험 슬롯)의 추천이 DB 경로(후보 SQL + core)와 평가(파일)에서 모두 같았다. 두 번째 실행은 camp_raw 변경 0건
+- 사내 DB 연동 시에는 3번만 `load_camps_from_company_db()` 출처로 바뀐다 (02_BACKEND.md 1장: 출처 읽기는 `sources/`)

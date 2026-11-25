@@ -4,7 +4,6 @@ import uuid
 
 import psycopg
 import pytest
-from psycopg.conninfo import make_conninfo
 
 from scripts.migrate import MIGRATIONS_DIR, Migration, MigrationError, discover, migrate, plan, status
 
@@ -63,19 +62,6 @@ def test_plan_stops_when_applied_file_missing():
 
 
 # ---------- 적용 (테스트 DB 안의 임시 스키마) ----------
-@pytest.fixture
-async def scratch_url(test_db_url):
-    """빈 스키마 하나를 만들고 search_path를 그 스키마로 둔 주소. 끝나면 지운다."""
-    schema = f'migrate_test_{uuid.uuid4().hex[:8]}'
-    async with await psycopg.AsyncConnection.connect(test_db_url, autocommit=True) as conn:
-        await conn.execute(f'CREATE SCHEMA {schema}')
-    try:
-        yield make_conninfo(test_db_url, options=f'-csearch_path={schema}'), schema
-    finally:
-        async with await psycopg.AsyncConnection.connect(test_db_url, autocommit=True) as conn:
-            await conn.execute(f'DROP SCHEMA {schema} CASCADE')
-
-
 async def _tables(url: str, schema: str) -> set[str]:
     async with await psycopg.AsyncConnection.connect(url) as conn:
         cur = await conn.execute('SELECT table_name FROM information_schema.tables WHERE table_schema = %s', (schema,))
@@ -84,18 +70,19 @@ async def _tables(url: str, schema: str) -> set[str]:
 
 @pytest.mark.db
 @pytest.mark.anyio
-async def test_migrate_creates_schema_and_is_idempotent(scratch_url):
-    url, schema = scratch_url
-    assert await migrate(url) == ['001_init.sql']
+async def test_migrate_creates_schema_and_is_idempotent(empty_schema):
+    url, schema = empty_schema
+    files = [m.filename for m in discover(MIGRATIONS_DIR)]
+    assert await migrate(url) == files
     assert await _tables(url, schema) == EXPECTED_TABLES
     assert await migrate(url) == []                       # 다시 돌려도 아무것도 안 함
-    assert await status(url) == [('001_init.sql', True)]
+    assert await status(url) == [(f, True) for f in files]
 
 
 @pytest.mark.db
 @pytest.mark.anyio
-async def test_migrate_applies_new_files_only_and_stops_on_change(scratch_url, tmp_path):
-    url, _ = scratch_url
+async def test_migrate_applies_new_files_only_and_stops_on_change(empty_schema, tmp_path):
+    url, _ = empty_schema
     (tmp_path / '001_a.sql').write_text('CREATE TABLE a (x int);', encoding='utf-8')
     assert await migrate(url, tmp_path) == ['001_a.sql']
     (tmp_path / '002_b.sql').write_text('CREATE TABLE b (x int);', encoding='utf-8')
@@ -107,8 +94,8 @@ async def test_migrate_applies_new_files_only_and_stops_on_change(scratch_url, t
 
 @pytest.mark.db
 @pytest.mark.anyio
-async def test_failed_file_is_rolled_back_and_not_recorded(scratch_url, tmp_path):
-    url, schema = scratch_url
+async def test_failed_file_is_rolled_back_and_not_recorded(empty_schema, tmp_path):
+    url, schema = empty_schema
     (tmp_path / '001_ok.sql').write_text('CREATE TABLE ok (x int);', encoding='utf-8')
     (tmp_path / '002_bad.sql').write_text('CREATE TABLE half (x int); SELECT * FROM no_such_table;', encoding='utf-8')
     with pytest.raises(psycopg.errors.UndefinedTable):
@@ -152,14 +139,18 @@ async def test_feedback_must_point_to_shown_card(db):
 
 @pytest.mark.db
 @pytest.mark.anyio
-async def test_feedback_reason_only_for_down_vote(db):
+async def test_feedback_reason_is_code_and_only_for_down_vote(db):
     await _camp(db)
     rec_id = await _card(db)
     sql = ("INSERT INTO feedback (recommendation_id, rank, source, source_camp_id, vote, reason) "
            "VALUES (%s, 1, 'test', 'c1', %s, %s)")
-    await db.execute(sql, (rec_id, 'down', '직무가 달라요'))
-    with pytest.raises(psycopg.errors.CheckViolation):
-        await db.execute(sql, (rec_id, 'up', '좋아요'))
+    await db.execute(sql, (rec_id, 'down', 'job_mismatch'))
+    await db.execute(sql, (rec_id, 'down', None))
+    with pytest.raises(psycopg.errors.CheckViolation):     # 👍에는 사유 없음
+        async with db.transaction():
+            await db.execute(sql, (rec_id, 'up', 'other'))
+    with pytest.raises(psycopg.errors.CheckViolation):     # 정해진 코드만 (002)
+        await db.execute(sql, (rec_id, 'down', '직무가 달라요'))
 
 
 @pytest.mark.db

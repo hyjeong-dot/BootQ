@@ -42,6 +42,29 @@ def job_relation(user_job: str, camp_job: str, relations: RelationIndex) -> str 
     return relations.get(pair(user_job, camp_job))
 
 
+# ---------- SQL 후보 조회용 집합 (서비스가 SQL로 후보를 좁힐 때. 최종 판단은 match) ----------
+def candidate_job_ids(user_jobs: Iterable[str], relations: RelationIndex) -> frozenset[str]:
+    """직무 A·B등급이 될 수 있는 캠프 직무: 유저 직무 자신 ∪ job_relation으로 이어진 직무(CLOSE·FAMILY)."""
+    users = set(user_jobs)
+    result = set(users)
+    for (a, b) in relations:
+        if a in users:
+            result.add(b)
+        if b in users:
+            result.add(a)
+    return frozenset(result)
+
+
+def candidate_industry_ids(user_industries: Iterable[str], families: FamilyIndex) -> frozenset[str]:
+    """산업만 매칭에서 일치·계열이 될 수 있는 캠프 산업: 유저 산업 자신 ∪ 계열을 공유하는 산업. ANY는 넣지 않는다."""
+    users = set(user_industries) - {ANY}
+    result = set(users)
+    for industry in families:
+        if any(shares_family(industry, u, families) for u in users):
+            result.add(industry)
+    return frozenset(result)
+
+
 def preferred_camp_type(merged: MergedSlots) -> str | None:
     """정렬 4단계에 쓸 선호 camp_type. 직무가 있고 desired_help를 본문에서 뽑았을 때만 (02_BACKEND.md 5장 "정렬 4단계 적용 조건")."""
     if not merged.jobs or merged.help_source != HELP_FROM_BODY:

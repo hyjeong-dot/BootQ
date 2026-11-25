@@ -67,3 +67,21 @@ def load_select_camps(raw_path: Path = CAMP_RAW, profile_path: Path = PROFILE,
     pool = {c.id for c in load_matching_camps(RULE, profile_path, manual_path)}
     return [SelectCamp(r['source_camp_id'], r['직무대분류'], r['직무중분류'], r['상세분류'], r['산업'], r['캠프명'])
             for r in _read(raw_path) if r['source_camp_id'] in pool]
+
+
+# ---------- DB 적재용 (BAT-006, #14) ----------
+def load_raw_camp_rows(path: Path = CAMP_RAW) -> dict[tuple[str, str], list[dict[str, str]]]:
+    """camp_raw.csv → {(source, source_camp_id): 원본 행들}. 같은 캠프가 직무코드만 다른 여러 행이면 모두 모은다 (파일 순서)."""
+    camps: dict[tuple[str, str], list[dict[str, str]]] = {}
+    for r in _read(path):
+        camps.setdefault((r['source'], r['source_camp_id']), []).append(r)
+    return camps
+
+
+def load_profile_rows(path: Path = PROFILE) -> list[dict[str, str]]:
+    """정규화 산출물(camp_profile_draft.csv)의 행 그대로. 배열 칸은 '|'로 나뉜 문자열이다 (split_values로 나눈다)."""
+    return _read(path)
+
+
+def split_values(value: str) -> tuple[str, ...]:
+    return _split(value)
