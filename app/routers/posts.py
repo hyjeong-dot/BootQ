@@ -56,7 +56,10 @@ def sse(event: str, data: dict) -> str:
 def result_payload(view: RecommendationView) -> dict:
     return {'recommendation_id': str(view.id), 'status': view.status,
             'cards': [{'rank': c.rank, 'camp_id': c.camp_id, 'camp_name': c.camp_name, 'reason': c.reason,
-                       'review': c.review} for c in view.cards]}
+                       'review': c.review, 'tags': list(c.tags),
+                       'recruit_start': c.recruit_start.isoformat() if c.recruit_start else None,
+                       'recruit_end': c.recruit_end.isoformat() if c.recruit_end else None}
+                      for c in view.cards]}
 
 
 async def _events(deps: Deps, post_id: UUID, first: RecommendationView,

@@ -1,4 +1,15 @@
 # API 컨테이너 (docs/rules/06_INFRA_DEPLOY.md). 의존성은 uv.lock 그대로, 개발 의존성 제외.
+
+# 1단계: 데모 페이지(SCR-001) TypeScript → JS. 번들러 없이 tsc만 (docs/rules/01_TECH_STACK.md)
+FROM node:26-slim AS frontend
+WORKDIR /frontend
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+COPY frontend/tsconfig.json ./
+COPY frontend/src ./src
+RUN npx tsc
+
+# 2단계: API
 FROM python:3.13-slim
 
 COPY --from=ghcr.io/astral-sh/uv:0.13.9 /uv /usr/local/bin/uv
@@ -20,6 +31,9 @@ COPY scripts ./scripts
 COPY db ./db
 COPY prompts ./prompts
 COPY data/vocab ./data/vocab
+# 데모 페이지: 서빙할 파일만 (src·node_modules는 넣지 않는다)
+COPY frontend/index.html frontend/popup.css ./frontend/
+COPY --from=frontend /frontend/dist ./frontend/dist
 
 RUN useradd --create-home --uid 1000 bootq
 USER bootq

@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>BootQ 데모</title>
+<link rel="stylesheet" href="popup.css">
+<style>
+  /* 데모 페이지 레이아웃·폼 (카드·토스트 스타일은 popup.css) */
+  .topbar { display: flex; align-items: baseline; gap: 12px; padding: 16px 24px; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .topbar h1 { margin: 0; font-size: 18px; font-weight: 700; }
+  .topbar p { margin: 0; font-size: 13px; color: var(--muted); }
+
+  .page { max-width: 760px; margin: 0 auto; padding: 24px 24px 160px; display: flex; flex-direction: column; gap: 16px; }
+  /* 넓은 화면: 폼을 토스트(폭 380 + 여백) 왼쪽 영역에 둬서 새 글 등록 버튼이 가려지지 않게 */
+  @media (min-width: 1024px) {
+    .page { box-sizing: content-box; margin-right: max(404px, calc((100vw - 808px) / 2)); }
+  }
+  .examples { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+
+  .post-form { display: flex; flex-direction: column; gap: 14px; padding: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
+  .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; }
+  .post-form label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 500; color: var(--text-sub); }
+  .post-form input, .post-form select, .post-form textarea {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--border-strong); border-radius: 8px;
+    background: var(--surface); color: var(--text); font: inherit; font-size: 14px;
+  }
+  .post-form textarea { min-height: 140px; resize: vertical; line-height: 1.55; }
+  .post-form input:focus, .post-form select:focus, .post-form textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+  .form-foot { display: flex; align-items: center; gap: 12px; }
+  .form-foot .btn { flex: 0 0 auto; width: 120px; }
+  #submit:disabled { opacity: 1; background: var(--border-strong); cursor: progress; }
+
+  .status { flex: 1; min-height: 20px; font-size: 13px; line-height: 1.5; color: var(--muted); }
+  .status[data-tone="info"] { color: var(--text-sub); }
+  .status[data-tone="ok"] { color: #1d7a46; }
+  .status[data-tone="warn"] { color: #b4461b; }
+  .link-btn { padding: 0; border: none; background: none; color: var(--accent); font-size: 13px; text-decoration: underline; }
+
+  @media (max-width: 640px) {
+    .topbar { flex-direction: column; gap: 4px; padding: 14px 16px; }
+    .page { padding: 16px 16px 360px; }
+    .examples { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
+    .examples > * { flex: 0 0 auto; white-space: nowrap; }
+    .post-form { padding: 16px; }
+    .grid { grid-template-columns: minmax(0, 1fr); }
+    .form-foot { flex-direction: column; align-items: stretch; }
+    .form-foot .btn { width: 100%; height: 48px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <h1>BootQ 데모</h1>
+  <p>커뮤니티 고민 글을 등록하면, 맞는 직무 부트캠프를 우측 하단에 추천해요.</p>
+</header>
+
+<main class="page">
+  <div class="examples" id="examples"><span>예시 글</span></div>
+
+  <form class="post-form" id="post-form" novalidate>
+    <div class="grid">
+      <label>고민 그룹
+        <select id="f-category_group">
+          <option>취업 고민</option>
+          <option>이직 고민</option>
+          <option>대학생 고민</option>
+          <option>랜선 사수</option>
+        </select>
+      </label>
+      <label>카테고리
+        <select id="f-category">
+          <option value="">(선택 안 함)</option>
+          <option>스펙</option><option>직무</option><option>회사/산업</option><option>진로</option>
+          <option>면접</option><option>자소서</option><option>인턴</option><option>포트폴리오</option>
+          <option>인적성</option><option>전공</option><option>이직</option><option>공기업</option>
+          <option>자기계발</option><option>대학생활</option><option>커리어</option><option>직장생활</option>
+          <option>중고신입</option><option>취업</option><option>대외활동</option><option>퇴사</option>
+        </select>
+      </label>
+      <label>희망 직무
+        <input id="f-target_job" type="text" maxlength="100" value="모든 직무">
+      </label>
+      <label>목표 회사
+        <input id="f-target_company" type="text" maxlength="100" value="모든 회사">
+      </label>
+    </div>
+    <label>제목
+      <input id="f-title" type="text" maxlength="200" placeholder="고민을 한 줄로 적어 주세요">
+    </label>
+    <label>본문
+      <textarea id="f-content" maxlength="5000" placeholder="상황과 고민을 자유롭게 적어 주세요"></textarea>
+    </label>
+    <div class="form-foot">
+      <div class="status" id="status" role="status" aria-live="polite"></div>
+      <button class="btn btn-main" id="submit" type="submit">등록</button>
+    </div>
+  </form>
+</main>
+
+<!-- 우측 하단 토스트 (좁은 화면에서는 하단 시트). 카드가 1장 이상일 때만 보인다 -->
+<aside class="toast is-closed" id="toast" aria-label="캠프 추천" aria-live="polite" hidden>
+  <section class="card">
+    <div class="handle" aria-hidden="true"></div>
+    <div class="card-head">
+      <span class="card-label">이런 캠프는 어떠세요?</span>
+      <button class="icon-btn" id="prev" type="button" aria-label="이전 캠프"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
+      <span class="pager" id="pager"></span>
+      <button class="icon-btn" id="next" type="button" aria-label="다음 캠프"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
+      <button class="icon-btn close" id="close" type="button" aria-label="닫기"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+    </div>
+
+    <div class="notice" id="notice" hidden>조건에 딱 맞는 캠프를 찾기는 어려워, 관련 분야의 캠프를 보여드려요.</div>
+    <div class="camp-name" id="camp-name"></div>
+    <div class="camp-reason" id="camp-reason"></div>
+    <div class="meta-row"><span id="tags" style="display:contents"></span><span class="period" id="period"></span></div>
+    <div class="no-review">후기 준비 중</div>
+
+    <div class="actions">
+      <button class="btn btn-line" type="button" disabled title="데모에서는 캠프 페이지가 없어요">상세보기</button>
+      <button class="btn btn-main" type="button" disabled title="데모에서는 캠프 페이지가 없어요">신청하기</button>
+    </div>
+
+    <div class="feedback" id="fb"></div>
+  </section>
+</aside>
+
+<template id="tpl-up"><button class="icon-btn" type="button" aria-label="도움이 됐어요"><svg viewBox="0 0 24 24"><path d="M7 10v12"></path><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"></path></svg></button></template>
+<template id="tpl-down"><button class="icon-btn" type="button" aria-label="아쉬워요"><svg viewBox="0 0 24 24"><path d="M17 14V2"></path><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z"></path></svg></button></template>
+
+<script type="module" src="dist/main.js"></script>
+</body>
+</html>
