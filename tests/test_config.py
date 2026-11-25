@@ -31,3 +31,12 @@ def test_load_env_without_file_does_nothing(tmp_path):
     env = {}
     load_env(tmp_path / 'missing', env)
     assert env == {}
+
+
+def test_database_urls_use_env_then_default_and_stay_separate():
+    from app.config import DEFAULT_DATABASE_URL, DEFAULT_TEST_DATABASE_URL, database_url, testing_database_url
+    assert database_url({}) == DEFAULT_DATABASE_URL
+    assert testing_database_url({}) == DEFAULT_TEST_DATABASE_URL != DEFAULT_DATABASE_URL
+    env = {'DATABASE_URL': 'postgresql://a/dev', 'TEST_DATABASE_URL': ' postgresql://a/test '}
+    assert database_url(env) == 'postgresql://a/dev'
+    assert testing_database_url(env) == 'postgresql://a/test'
