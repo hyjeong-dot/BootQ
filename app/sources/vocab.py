@@ -80,3 +80,23 @@ def load_slot_vocab(jobs_path: Path | None = None, industries_path: Path | None 
     from app.core.slot_filling import SlotVocab
     industries = tuple(r['industry'] for r in _read(industries_path or VOCAB_DIR / 'industries.csv'))
     return SlotVocab(load_job_families(jobs_path), industries)
+
+
+# ---------- DB 적재용 (BAT-006, #14) ----------
+TEMPORARY = '임시'
+
+
+def load_job_rows(path: Path | None = None) -> list[tuple[str, str, bool]]:
+    """jobs.csv의 (직무, 대분류, 임시 여부) — 파일 순서. 임시 직무도 넣는다 (캠프가 자리표시로 쓴다)."""
+    return [(r['job'], r['family'], r['status'] == TEMPORARY) for r in _read(path or VOCAB_DIR / 'jobs.csv')]
+
+
+def load_industry_list(path: Path | None = None) -> list[str]:
+    """industries.csv의 산업 — 파일 순서 (슬롯필링 프롬프트가 실행마다 같아야 해서)."""
+    return [r['industry'] for r in _read(path or VOCAB_DIR / 'industries.csv')]
+
+
+def load_job_relation_rows(path: Path | None = None) -> list[tuple[str, str, str, str]]:
+    """생성된 job_relation.csv의 (job_a, job_b, relation, source)."""
+    return [(r['job_a'], r['job_b'], r['relation'], r['source'])
+            for r in _read(path or VOCAB_DIR / 'job_relation.csv')]

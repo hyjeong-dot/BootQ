@@ -162,6 +162,8 @@ erDiagram
 > 마이그레이션 도구가 없는 프로젝트는 이 문서가 끝까지 원본이다.
 >
 > **2026-11-26부터 원본은 `db/migrations/*.sql`이다** (`001_init.sql`). 아래 표는 그 시점의 설계 의도를 적은 것이고, 타입·제약이 다르면 SQL이 맞다.
+>
+> 마이그레이션 이력: `001_init.sql`(#13) → `002_vocab_temporary_feedback_reason.sql`(#14: vocab_job.temporary, 어휘 position, feedback.reason 코드 제약)
 
 ### 테이블 목록
 
@@ -212,8 +214,8 @@ erDiagram
 
 | 테이블 | 컬럼 | 제약 | 설명 |
 |---|---|---|---|
-| vocab_job | job_id text, family text | PK(job_id) | 대표 직무와 대분류(계열 정책 단위) |
-| vocab_industry | industry_id text | PK | `ANY` 포함 |
+| vocab_job | job_id text, family text, temporary boolean, position integer | PK(job_id) | 대표 직무와 대분류(계열 정책 단위). `temporary`는 jobs.csv의 `임시`(자리표시 직무, 재분류 후 삭제 예정) — 캠프가 쓰고 있어 넣되 슬롯필링 선택지에서는 뺀다 (002, 2026-11-26) |
+| vocab_industry | industry_id text, position integer | PK | `ANY` 포함. `position`은 파일 순서 (002: 슬롯필링 프롬프트의 Enum 순서가 평가와 같아야 해서) |
 | vocab_skill | skill_id text | PK | |
 | industry_family | family text, industry_id text | PK(family, industry_id), FK industry_id → vocab_industry | 한 산업이 여러 행 → 계열 집합 |
 | job_relation | job_a text, job_b text, relation text, source text | PK(job_a, job_b), FK 양쪽 → vocab_job, `relation IN ('CLOSE','FAMILY')`, `source IN ('auto','manual')`, `job_a <> job_b` | 파일에 한 방향으로만 저장되어 있고 대칭으로 읽는다 (core.job_relation). 역방향 중복은 적재 배치가 막는다 |
@@ -230,7 +232,7 @@ erDiagram
 | source | text | NO | | PK | 출처 이름 (`csv` …) |
 | source_camp_id | text | NO | | PK | 출처의 캠프 ID. CSV는 캠프명 해시 (1장 PK 전략) |
 | name | text | NO | | | 캠프명. 카드 표시·사유에 자주 쓰여 payload에서 꺼내 둔다 |
-| payload | jsonb | NO | | | 원본 행 전체 |
+| payload | jsonb | NO | | | 원본 행 전체의 배열 (같은 캠프가 직무코드만 다른 여러 행이면 모두. ID 칸 제외) |
 | content_hash | text | NO | | | 캠프명+원래 코드 해시. 바뀐 캠프만 재정규화 |
 | active | boolean | NO | true | | 출처에서 사라지면 false (소프트 삭제 대신) |
 | recruit_start | date | YES | | | 모집 시작일. 출처에 없으면 NULL |
@@ -327,5 +329,5 @@ erDiagram
 | id | uuid | NO | gen_random_uuid() | PK | |
 | recommendation_id, rank, source, source_camp_id | | NO | | 복합 FK → recommendation_item ON DELETE CASCADE, 인덱스 | rec_id + 순위 + 캠프가 실제 보여준 카드와 맞아야 들어간다 |
 | vote | text | NO | | `up / down` | |
-| reason | text | YES | | `vote='down'`일 때만 값 허용 | 👎 사유 (선택지·자유 입력 여부는 #14·#15에서) |
+| reason | text | YES | | `vote='down'`일 때만, 코드 `job_mismatch / industry_mismatch / not_needed / other` (002) | 👎 사유 코드. 자유 입력은 받지 않는다 (10_API_SPEC.md API-003, 2026-11-26) |
 | created_at | timestamptz | NO | now() | | |

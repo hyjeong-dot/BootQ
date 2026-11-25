@@ -260,3 +260,28 @@ def test_relation_index_from_vocab_file():
     index = build_relation_index(load_job_relations())
     assert job_relation('SW개발', '웹개발', index) == CLOSE      # job_relation_manual.csv의 확정 CLOSE
     assert all(rel in (CLOSE, FAMILY) for rel in index.values())
+
+
+# ---------- SQL 후보 조회용 집합 ----------
+def test_candidate_job_ids_include_self_and_related_both_directions():
+    from app.core.matching import candidate_job_ids
+    assert candidate_job_ids(['SW개발'], RELATIONS) == {'SW개발', '웹개발', '데이터분석'}
+    assert candidate_job_ids(['웹개발'], RELATIONS) == {'웹개발', 'SW개발'}
+    assert candidate_job_ids(['관계없는직무'], RELATIONS) == {'관계없는직무'}
+
+
+def test_candidate_job_ids_cover_every_camp_match_can_pick():
+    """SQL로 좁힌 후보로 돌려도 전체 캠프로 돌린 결과와 같아야 한다."""
+    from app.core.matching import candidate_job_ids
+    camps = [Camp('c1', '', ('웹개발',), (ANY,)), Camp('c2', '', ('데이터분석',), (ANY,)),
+             Camp('c3', '', ('품질관리',), (ANY,)), Camp('c4', '', ('SW개발',), ('금융',))]
+    merged = MergedSlots(jobs=(job('SW개발'),))
+    allowed = candidate_job_ids([j.value for j in merged.jobs], RELATIONS)
+    narrowed = [c for c in camps if set(c.job_ids) & allowed]
+    assert match(merged, narrowed, RELATIONS, FAMILIES) == match(merged, camps, RELATIONS, FAMILIES)
+
+
+def test_candidate_industry_ids_add_family_members_but_not_any():
+    from app.core.matching import candidate_industry_ids
+    assert candidate_industry_ids(['은행'], FAMILIES) == {'은행', '금융'}
+    assert candidate_industry_ids(['IT', ANY], FAMILIES) == {'IT'}

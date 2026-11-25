@@ -3,9 +3,11 @@
 - 세션 시작 시 마이그레이션을 한 번 적용하고, 테스트마다 트랜잭션을 열었다가 롤백한다"""
 import asyncio
 import os
+import uuid
 
 import psycopg
 import pytest
+from psycopg.conninfo import make_conninfo
 
 from app.config import load_env, testing_database_url
 from scripts.migrate import migrate
@@ -39,3 +41,17 @@ async def db(test_db_url):
             yield conn
         finally:
             await conn.rollback()
+
+
+@pytest.fixture
+def empty_schema(test_db_url):
+    """테스트 DB 안의 빈 스키마 하나와 search_path를 그 스키마로 둔 주소 (url, schema). 끝나면 지운다.
+    마이그레이션 적용 자체를 시험하거나, 커밋되는 데이터가 필요한 테스트(서버가 자기 커넥션으로 읽음)에 쓴다."""
+    schema = f'test_{uuid.uuid4().hex[:10]}'
+    with psycopg.connect(test_db_url, autocommit=True) as conn:
+        conn.execute(f'CREATE SCHEMA {schema}')
+    try:
+        yield make_conninfo(test_db_url, options=f'-csearch_path={schema}'), schema
+    finally:
+        with psycopg.connect(test_db_url, autocommit=True) as conn:
+            conn.execute(f'DROP SCHEMA {schema} CASCADE')

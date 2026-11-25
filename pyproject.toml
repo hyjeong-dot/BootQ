@@ -5,9 +5,10 @@ description = "자연어 질의 의도 분석 기반 맞춤형 부트캠프 매�
 readme = "README.md"
 requires-python = ">=3.13,<3.14"
 # 런타임 의존성은 실제로 쓰는 작업에서 추가한다. core·llm·평가 스크립트는 표준 라이브러리만 쓴다.
-# psycopg[binary]: libpq를 휠에 포함 (macOS·python:3.13-slim에 libpq를 따로 설치하지 않게). 커넥션 풀(psycopg-pool)은 #14에서.
+# psycopg[binary]: libpq를 휠에 포함 (macOS·python:3.13-slim에 libpq를 따로 설치하지 않게).
 dependencies = [
     "fastapi>=0.165.0",
+    "psycopg-pool>=3.3.3",
     "psycopg[binary]>=3.3.9",
     "uvicorn>=0.54.0",
 ]
@@ -15,6 +16,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "anyio>=4.16.0",
+    "httpx2>=2.16.2",
     "pytest>=9.2",
 ]
 
