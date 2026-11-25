@@ -31,7 +31,7 @@ app/
 ├── repositories/   SQL 직접 작성, dataclass 반환 (ORM 없음)
 ├── sources/        캠프 출처·어휘 파일 읽기: load_camps_from_csv() → list[RawCamp]
 ├── llm/            LLMClient Protocol + groq.py, openrouter.py
-├── core/           순수 함수: models, gate, merge, matching, reason (+ industry, job_relation, normalize_v2, slot_filling)
+├── core/           순수 함수: models, gate, merge, matching, reason (+ industry, job_relation, normalize_v2, slot_filling, evaluation)
 ├── config.py       .env 읽기, 공급자별 모델 선택
 └── main.py         조립, 설정으로 LLM·출처 선택
 scripts/   정규화·검사·평가 CLI
@@ -45,7 +45,7 @@ frontend/  데모 페이지
     - 오케스트레이터 비대화 방지: 단계별 측정·오류 처리는 작은 헬퍼로 감싸고, 기록은 recorder 하나에 모은다.
     - 피드백·검수 상태 변경 같은 단순 CRUD는 일반 routers/services/repositories로.
     - vocab·job_relation은 서버 시작 시 메모리 로드, 정규화 실행 후 갱신 API로 재로드.
-  - 현재 구현된 것: `config.py`, `core/`(models, gate, merge, matching, reason, industry, job_relation, normalize, normalize_v2, slot_filling), `llm/`, `services/slot_filling.py`(동기 호출 함수), `sources/`(vocab, prompts, qna). 나머지는 미구현.
+  - 현재 구현된 것: `config.py`, `core/`(models, gate, merge, matching, reason, industry, job_relation, normalize, normalize_v2, slot_filling, evaluation), `llm/`, `services/slot_filling.py`(동기 호출 함수), `sources/`(vocab, prompts, qna, camps, evaluation). 나머지는 미구현.
 - 결정일: 2026-11-24
 
 ## 2. API 설계 규칙
