@@ -44,11 +44,12 @@
 
 | 항목 | 내용 |
 |---|---|
-| 백업 대상 | `data/private/`만 (사람이 만든 매핑·수동 보정·검수 파일) |
-| 백업 주기 / 방법 | 작업이 끝날 때마다 비공개 별도 git 저장소에 커밋·push (06_INFRA_DEPLOY.md) |
-| 백업 보관 위치 | 비공개 GitHub 저장소 (구현 후 저장소 이름 기록) |
-| 복구 절차 | ① 비공개 저장소를 clone해 `data/private/`로 복사 ② DB는 백업하지 않고 재생성: 볼륨 삭제(`docker compose down -v`) → 마이그레이션 적용 → 어휘·캠프 적재 배치(BAT-006) 실행 (명령어는 구현 후 확인) |
-| 복구 테스트 마지막 확인일 | (미실시) |
+| 백업 대상 | `data/private/` (사람이 만든 매핑·수동 보정·검수 파일) + LLM 정규화 결과 `data/derived/camp_llm.jsonl`, `llm_calls.jsonl` (백업 저장소의 `llm/`에 복사) |
+| 백업 주기 / 방법 | 작업이 끝날 때마다 비공개 별도 git 저장소에 커밋·push (06_INFRA_DEPLOY.md). `data/private/` 폴더 자체가 별도 git 저장소(중첩 저장소)이고, BootQ는 `.gitignore`로 이 폴더를 무시하므로 두 저장소가 섞이지 않는다 |
+| 백업 명령 | `scripts/backup_private.sh "무엇을 바꿨는지"` — LLM 결과를 `data/private/llm/`에 복사한 뒤 커밋·push. 바뀐 것이 없으면 아무것도 하지 않는다 |
+| 백업 보관 위치 | 비공개 GitHub 저장소 `hyjeong-dot/BootQ-private` (private, 공유하지 않음), 브랜치 `main` |
+| 복구 절차 | ① `git clone https://github.com/hyjeong-dot/BootQ-private.git data/private` (BootQ 루트에서. `data/private/`가 이미 있으면 먼저 다른 이름으로 옮긴다) ② `cp data/private/llm/*.jsonl data/derived/`로 LLM 결과를 되돌린 뒤, 나머지 `data/derived/`는 BAT-001~002를 실행하고 BAT-003을 `--report-only`로 실행해 다시 만든다 (LLM 호출 없음) ③ DB는 백업하지 않고 재생성: 볼륨 삭제(`docker compose down -v`) → 마이그레이션 적용 → 어휘·캠프 적재 배치(BAT-006) 실행 (명령어는 구현 후 확인) |
+| 복구 테스트 마지막 확인일 | 2026-11-25 — 백업 저장소를 새 폴더에 clone해 `data/private/`와 비교, `llm/`의 두 파일을 `data/derived/`와 비교, 모두 차이 없음 (① 확인, ②는 파일 일치까지. ③은 DB·적재 배치 구현 후) |
 
 ## 4. 정기 점검 항목
 
