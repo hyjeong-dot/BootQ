@@ -92,7 +92,7 @@
 | 마일스톤 | 목표 | 기한 | 상태 | 이슈 (진행 기록) |
 |---|---|---|---|---|
 | [M1](https://github.com/hyjeong-dot/BootQ/milestone/1) | 오프라인 정규화: 어휘·매핑·기준선·LLM 정규화 v2 | 2026-11-24 | ✅ (2026-11-25 종료) | [#7](https://github.com/hyjeong-dot/BootQ/issues/7)✅ [#8](https://github.com/hyjeong-dot/BootQ/issues/8)✅ [#18](https://github.com/hyjeong-dot/BootQ/issues/18)✅ ([#19](https://github.com/hyjeong-dot/BootQ/issues/19)✅) |
-| [M2](https://github.com/hyjeong-dot/BootQ/milestone/2) | 평가 준비: 정답 셋 판정·고정 | 2026-11-25 | 🔄 | [#9](https://github.com/hyjeong-dot/BootQ/issues/9)✅ ([#20](https://github.com/hyjeong-dot/BootQ/issues/20)) |
+| [M2](https://github.com/hyjeong-dot/BootQ/milestone/2) | 평가 준비: 정답 셋 판정·고정 | 2026-11-25 | ✅ (2026-11-25 종료) | [#9](https://github.com/hyjeong-dot/BootQ/issues/9)✅ ([#20](https://github.com/hyjeong-dot/BootQ/issues/20)✅) |
 | [M3](https://github.com/hyjeong-dot/BootQ/milestone/3) | 요청 파이프라인 core + 평가 스크립트 | 2026-11-25 | 🔄 | [#1](https://github.com/hyjeong-dot/BootQ/issues/1)✅ [#3](https://github.com/hyjeong-dot/BootQ/issues/3)✅ [#5](https://github.com/hyjeong-dot/BootQ/issues/5)✅ [#22](https://github.com/hyjeong-dot/BootQ/issues/22)✅ [#10](https://github.com/hyjeong-dot/BootQ/issues/10)✅ [#11](https://github.com/hyjeong-dot/BootQ/issues/11) [#12](https://github.com/hyjeong-dot/BootQ/issues/12)✅ ([#21](https://github.com/hyjeong-dot/BootQ/issues/21)) |
 | [M4](https://github.com/hyjeong-dot/BootQ/milestone/4) | DB·API·SSE | 2026-11-26 | ⬜ | [#13](https://github.com/hyjeong-dot/BootQ/issues/13) [#14](https://github.com/hyjeong-dot/BootQ/issues/14) |
 | [M5](https://github.com/hyjeong-dot/BootQ/milestone/5) | 데모 페이지 | 2026-11-26 | ⬜ | [#15](https://github.com/hyjeong-dot/BootQ/issues/15) |
