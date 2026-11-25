@@ -62,7 +62,7 @@
 - 결정:
   - 제목: `[M{번호}] 작업 한 줄` (예: `[M3] 매칭 core 구현`)
   - 본문: 완료 조건 체크리스트
-  - 라벨: `feat` / `fix` / `docs` / `eval`. 마일스톤: GitHub Milestones의 M1~M6
+  - 라벨: `feat` / `fix` / `docs` / `eval`. 마일스톤: GitHub Milestones의 M1~M7 (M7 고도화는 마감 없이 MVP 이후로 미뤄도 되는 일을 모은다)
   - 브랜치: `{종류}/#{이슈번호}-{설명}`, PR 본문에 `Closes #{이슈번호}`
   - 이슈·PR에는 유저 원문·회사 원본 데이터·인턴십 레포 경로를 적지 않는다 (커밋 금지 대상과 같은 기준)
 - 결정일: 2026-11-25
@@ -93,10 +93,11 @@
 |---|---|---|---|---|
 | [M1](https://github.com/hyjeong-dot/BootQ/milestone/1) | 오프라인 정규화: 어휘·매핑·기준선·LLM 정규화 v2 | 2026-11-24 | ✅ (2026-11-25 종료) | [#7](https://github.com/hyjeong-dot/BootQ/issues/7)✅ [#8](https://github.com/hyjeong-dot/BootQ/issues/8)✅ [#18](https://github.com/hyjeong-dot/BootQ/issues/18)✅ ([#19](https://github.com/hyjeong-dot/BootQ/issues/19)✅) |
 | [M2](https://github.com/hyjeong-dot/BootQ/milestone/2) | 평가 준비: 정답 셋 판정·고정 | 2026-11-25 | ✅ (2026-11-25 종료) | [#9](https://github.com/hyjeong-dot/BootQ/issues/9)✅ ([#20](https://github.com/hyjeong-dot/BootQ/issues/20)✅) |
-| [M3](https://github.com/hyjeong-dot/BootQ/milestone/3) | 요청 파이프라인 core + 평가 스크립트 | 2026-11-25 | 🔄 | [#1](https://github.com/hyjeong-dot/BootQ/issues/1)✅ [#3](https://github.com/hyjeong-dot/BootQ/issues/3)✅ [#5](https://github.com/hyjeong-dot/BootQ/issues/5)✅ [#22](https://github.com/hyjeong-dot/BootQ/issues/22)✅ [#10](https://github.com/hyjeong-dot/BootQ/issues/10)✅ [#11](https://github.com/hyjeong-dot/BootQ/issues/11) [#12](https://github.com/hyjeong-dot/BootQ/issues/12)✅ ([#21](https://github.com/hyjeong-dot/BootQ/issues/21)) |
+| [M3](https://github.com/hyjeong-dot/BootQ/milestone/3) | 요청 파이프라인 core + 평가 스크립트 | 2026-11-25 | ✅ (2026-11-26 종료) | [#1](https://github.com/hyjeong-dot/BootQ/issues/1)✅ [#3](https://github.com/hyjeong-dot/BootQ/issues/3)✅ [#5](https://github.com/hyjeong-dot/BootQ/issues/5)✅ [#22](https://github.com/hyjeong-dot/BootQ/issues/22)✅ [#10](https://github.com/hyjeong-dot/BootQ/issues/10)✅ [#11](https://github.com/hyjeong-dot/BootQ/issues/11)✅ [#12](https://github.com/hyjeong-dot/BootQ/issues/12)✅ ([#21](https://github.com/hyjeong-dot/BootQ/issues/21)✅) |
 | [M4](https://github.com/hyjeong-dot/BootQ/milestone/4) | DB·API·SSE | 2026-11-26 | ⬜ | [#13](https://github.com/hyjeong-dot/BootQ/issues/13) [#14](https://github.com/hyjeong-dot/BootQ/issues/14) |
 | [M5](https://github.com/hyjeong-dot/BootQ/milestone/5) | 데모 페이지 | 2026-11-26 | ⬜ | [#15](https://github.com/hyjeong-dot/BootQ/issues/15) |
-| [M6](https://github.com/hyjeong-dot/BootQ/milestone/6) | 평가 실행과 결과·문서 정리, README | 2026-11-27 | ⬜ | [#16](https://github.com/hyjeong-dot/BootQ/issues/16) [#17](https://github.com/hyjeong-dot/BootQ/issues/17) |
+| [M6](https://github.com/hyjeong-dot/BootQ/milestone/6) | 평가 실행과 결과·문서 정리, README | 2026-11-27 | ⬜ | [#16](https://github.com/hyjeong-dot/BootQ/issues/16)✅ [#17](https://github.com/hyjeong-dot/BootQ/issues/17) [#35](https://github.com/hyjeong-dot/BootQ/issues/35)✅ [#36](https://github.com/hyjeong-dot/BootQ/issues/36)✅ |
+| [M7](https://github.com/hyjeong-dot/BootQ/milestone/7) | 고도화: MVP 이후로 미뤄도 되는 개선 (평가에서 보류한 규칙, `99_DECISIONS.md`의 보류 방안 재검토) | 없음 | ⬜ | [#40](https://github.com/hyjeong-dot/BootQ/issues/40) |
 
 ### 선행 관계
 
