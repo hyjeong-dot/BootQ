@@ -8,12 +8,12 @@ v1과 달라진 점
 - 주 직무 교체는 자리표시 직무(원래 코드가 뭉뚱그려진 칸)에서만 허용한다
 - 추가·교체에는 캠프명의 근거 구절(evidence)이 있어야 하고, 코드가 캠프명에 실제로 있는지 확인한다
 - 기준 산업을 범용(ANY)으로 바꾸자는 판단은 적용하지 않고 제안(remove_industry_suggested)으로만 받는다
-- 적용 순서: 수동 보정 > LLM > 규칙(기준선)
+- 적용 순서: 수동 보정 > LLM > 규칙(기준선). pending_review는 결과 해시에 묶인 검수 판정(accept·reject)으로 approved가 된다
 """
 import hashlib
 import json
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from string import Template
 
 NORMALIZER_VERSION = 'v2'
@@ -69,7 +69,7 @@ class Profile:
     industry_ids: tuple[str, ...]
     skills: tuple[str, ...]
     camp_type: str
-    status: str                       # auto_approved | pending_review | approved(수동 보정)
+    status: str                       # auto_approved | pending_review | approved(수동 보정 또는 검수 판정)
     log: tuple[str, ...] = ()         # 버린 교체 시도, 근거 검증 실패, 되살린 기준 값 등
     remove_industry_suggested: bool = False
     evidence: tuple[str, ...] = ()
@@ -248,6 +248,66 @@ def merge(camp: CampInput, llm: dict | None, manual: Manual | None = None) -> Pr
         status = 'approved'
     return Profile(is_camp, tuple(jobs), sub_job, tuple(industries), tuple(skills), camp_type, status,
                    tuple(log), remove_suggested, evidence)
+
+
+# ---------- 검수 승인 (사람이 pending_review를 본 결과) ----------
+@dataclass(frozen=True)
+class Approval:
+    """검수 판정. 판정 당시의 결과 해시에 묶여 있어, 다시 돌려 결과가 바뀌면 적용되지 않는다."""
+    result_hash: str
+    decision: str                     # accept | reject
+
+
+REVIEW_DECISIONS = ('accept', 'reject')
+
+
+def result_hash(profile: Profile) -> str:
+    """기준과 달라질 수 있는 칸의 해시. camp_type·skills는 검수 대상이 아니라 넣지 않는다."""
+    key = json.dumps([profile.is_camp, list(profile.job_ids), list(profile.industry_ids), profile.sub_job,
+                      profile.remove_industry_suggested], ensure_ascii=False)
+    return hashlib.sha256(key.encode('utf-8')).hexdigest()[:12]
+
+
+def apply_approval(camp: CampInput, profile: Profile, approval: Approval | None) -> Profile:
+    """pending_review 결과에 검수 판정을 적용한다. accept는 병합 결과를, reject는 기준값(camp_type·skills는 유지)을 승인한다.
+    수동 보정(approved)·auto_approved 결과와 해시가 다른 판정은 그대로 둔다."""
+    if profile.status != 'pending_review' or approval is None or approval.result_hash != result_hash(profile):
+        return profile
+    if approval.decision == 'accept':
+        return replace(profile, status='approved', log=(*profile.log, '검수 승인'))
+    if approval.decision == 'reject':
+        return replace(profile, is_camp=True, job_ids=camp.jobs, industry_ids=camp.industries,
+                       sub_job=camp.sub_jobs[0] if camp.sub_jobs else '', status='approved',
+                       log=(*profile.log, '검수 거절: 기준값으로'))
+    return profile
+
+
+REVIEW_TYPES = (('자리표시 주 직무 교체', '주 직무 교체'), ('직무 추가', '직무 추가'), ('산업 추가', '산업 추가'),
+                ('주 직무 교체 시도 버림', '교체 시도 버림'), ('기준 산업 제거 제안', '산업 ANY 제안'),
+                ('근거 검증 실패', '근거 검증 실패로 버림'), ('캠프 아님', '캠프 아님'))
+
+
+def review_types(camp: CampInput, profile: Profile) -> list[str]:
+    """검수 목록의 유형. 메모가 있는데 결과가 기준과 같으면(LLM이 메모를 따르지 않으면 auto_approved가 되어 diff에서 안 보임)
+    '메모 미반영'을 붙인다."""
+    types = [name for marker, name in REVIEW_TYPES if any(m.startswith(marker) for m in profile.log)]
+    same_as_base = (profile.is_camp and set(profile.job_ids) == set(camp.jobs)
+                    and set(profile.industry_ids) == set(camp.industries))
+    if camp.memo and same_as_base and profile.status == 'auto_approved':
+        types.append('메모 미반영')
+    return types
+
+
+def dropped_proposals(camp: CampInput, llm: dict | None) -> list[str]:
+    """LLM 제안 중 기준에 없는 것 (근거 검증 실패로 버려졌을 때 무엇을 잃었는지 보여 주는 용도)."""
+    if llm is None:
+        return []
+    out = [f'주직무 {llm["main_job"]}'] if llm['main_job'] and llm['main_job'] not in camp.jobs else []
+    out += [j for j in llm['add_jobs'] if j not in camp.jobs]
+    out += [i for i in llm['add_industries'] if i not in camp.industries]
+    if llm['sub_job'] and not camp.sub_jobs:
+        out.append(f'sub {llm["sub_job"]}')
+    return out
 
 
 def v1_item_to_v2(v1_item: dict, camp: CampInput) -> dict:
